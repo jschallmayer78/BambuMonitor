@@ -11,7 +11,9 @@
 import Foundation
 
 struct WidgetSnapshot: Codable {
-    static let appGroupID = "group.Meine.BambuMonitor"
+    // Team-ID-Präfix statt "group." – nötig für Developer-ID-Verteilung
+    // außerhalb des App Store (macOS-Konvention).
+    static let appGroupID = "J3P8T7BG24.BambuMonitor"
     static let storageKey = "widgetSnapshot"
 
     var printerName: String

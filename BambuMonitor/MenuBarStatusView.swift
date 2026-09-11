@@ -8,6 +8,7 @@
 
 import SwiftUI
 import AppKit
+import Sparkle
 
 private enum Theme {
     static let background = Color(red: 0.08, green: 0.10, blue: 0.18)
@@ -20,6 +21,7 @@ private enum Theme {
 
 struct MenuBarStatusView: View {
     @Bindable var monitor: PrinterMonitor
+    var updater: SPUUpdater?
     @State private var showSettings = false
 
     var body: some View {
@@ -61,6 +63,17 @@ struct MenuBarStatusView: View {
                     .foregroundStyle(Theme.secondaryText)
             }
             Spacer()
+            if let updater {
+                Button("Nach Updates suchen") {
+                    // Die Update-Fenster von Sparkle brauchen eine aktive App –
+                    // als Menüleisten-App ist sie das sonst nicht.
+                    NSApplication.shared.activate(ignoringOtherApps: true)
+                    updater.checkForUpdates()
+                }
+                .buttonStyle(.plain)
+                .font(.caption)
+                .foregroundStyle(Theme.secondaryText)
+            }
             Button("Beenden") {
                 NSApplication.shared.terminate(nil)
             }

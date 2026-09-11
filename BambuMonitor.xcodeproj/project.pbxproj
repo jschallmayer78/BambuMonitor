@@ -10,6 +10,7 @@
 		300777413053D4B000F92712 /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 300777403053D4B000F92712 /* WidgetKit.framework */; };
 		300777433053D4B000F92712 /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 300777423053D4B000F92712 /* SwiftUI.framework */; };
 		300777523053D4B100F92712 /* BambuMonitorWidgetExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 3007773E3053D4B000F92712 /* BambuMonitorWidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		3007775E3053E18700F92712 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = 3007775D3053E18700F92712 /* Sparkle */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -101,6 +102,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				3007775E3053E18700F92712 /* Sparkle in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -185,6 +187,7 @@
 			);
 			name = BambuMonitor;
 			packageProductDependencies = (
+				3007775D3053E18700F92712 /* Sparkle */,
 			);
 			productName = BambuMonitor;
 			productReference = 300777003053CDA800F92712 /* BambuMonitor.app */;
@@ -293,6 +296,9 @@
 			);
 			mainGroup = 300776F73053CDA800F92712;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				3007775C3053E18700F92712 /* XCRemoteSwiftPackageReference "Sparkle" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 300777013053CDA800F92712 /* Products */;
 			projectDirPath = "";
@@ -812,6 +818,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		3007775C3053E18700F92712 /* XCRemoteSwiftPackageReference "Sparkle" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/sparkle-project/Sparkle";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.9.6;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		3007775D3053E18700F92712 /* Sparkle */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 3007775C3053E18700F92712 /* XCRemoteSwiftPackageReference "Sparkle" */;
+			productName = Sparkle;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 300776F83053CDA800F92712 /* Project object */;
 }

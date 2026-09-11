@@ -13,7 +13,7 @@ import SwiftUI
 /// Strukturgleiche Kopie von `WidgetSnapshot` aus der Haupt-App –
 /// Änderungen dort müssen hier nachgezogen werden.
 struct SharedSnapshot: Codable {
-    static let appGroupID = "group.Meine.BambuMonitor"
+    static let appGroupID = "J3P8T7BG24.BambuMonitor"
     static let storageKey = "widgetSnapshot"
 
     var printerName: String

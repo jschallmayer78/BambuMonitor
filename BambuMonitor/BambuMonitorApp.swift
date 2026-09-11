@@ -6,14 +6,21 @@
 //
 
 import SwiftUI
+import Sparkle
 
 @main
 struct BambuMonitorApp: App {
     @State private var monitor = PrinterMonitor()
+    /// Sparkle-Updater; startet beim App-Start und prüft periodisch auf Updates.
+    private let updaterController = SPUStandardUpdaterController(
+        startingUpdater: true,
+        updaterDelegate: nil,
+        userDriverDelegate: nil
+    )
 
     var body: some Scene {
         MenuBarExtra {
-            MenuBarStatusView(monitor: monitor)
+            MenuBarStatusView(monitor: monitor, updater: updaterController.updater)
         } label: {
             MenuBarLabel(monitor: monitor)
         }
