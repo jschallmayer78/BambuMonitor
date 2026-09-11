@@ -2,31 +2,37 @@
 //  BambuMonitorApp.swift
 //  BambuMonitor
 //
-//  Created by Jörg Schallmayer on 11.09.26.
+//  Menüleisten-App zum Überwachen eines Bambu Lab 3D-Druckers.
 //
 
 import SwiftUI
-import SwiftData
 
 @main
 struct BambuMonitorApp: App {
-    var sharedModelContainer: ModelContainer = {
-        let schema = Schema([
-            Item.self,
-        ])
-        let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
-
-        do {
-            return try ModelContainer(for: schema, configurations: [modelConfiguration])
-        } catch {
-            fatalError("Could not create ModelContainer: \(error)")
-        }
-    }()
+    @State private var monitor = PrinterMonitor()
 
     var body: some Scene {
-        WindowGroup {
-            ContentView()
+        MenuBarExtra {
+            MenuBarStatusView(monitor: monitor)
+        } label: {
+            MenuBarLabel(monitor: monitor)
         }
-        .modelContainer(sharedModelContainer)
+        .menuBarExtraStyle(.window)
+    }
+}
+
+/// Kompakte Anzeige in der Menüleiste: Symbol plus Fortschritt und Restzeit,
+/// solange ein Druck läuft.
+private struct MenuBarLabel: View {
+    var monitor: PrinterMonitor
+
+    var body: some View {
+        let snapshot = monitor.snapshot
+        HStack(spacing: 4) {
+            Image(systemName: "printer.fill")
+            if snapshot.activity == .printing || snapshot.activity == .paused {
+                Text("\(snapshot.progressPercent)% · \(snapshot.remainingText)")
+            }
+        }
     }
 }
