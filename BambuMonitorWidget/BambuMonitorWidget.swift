@@ -57,6 +57,14 @@ struct SharedSnapshot: Codable {
         return hours > 0 ? "\(hours) h \(minutes) min" : "\(minutes) min"
     }
 
+    /// Voraussichtliches Druckende. Das Widget zeigt die Restzeit als live
+    /// herunterzählenden Countdown – so bleibt sie aktuell, ohne dass die
+    /// App ständig Timeline-Reloads verbrauchen muss.
+    var estimatedEnd: Date? {
+        guard isPrinting, remainingMinutes > 0 else { return nil }
+        return updatedAt.addingTimeInterval(TimeInterval(remainingMinutes * 60))
+    }
+
     static let demo = SharedSnapshot(
         printerName: "Bambu Drucker",
         activityRaw: "RUNNING",
@@ -90,10 +98,15 @@ struct Provider: TimelineProvider {
     }
 
     func getTimeline(in context: Context, completion: @escaping (Timeline<PrinterEntry>) -> Void) {
-        let entry = PrinterEntry(date: .now, snapshot: SharedSnapshot.load())
+        let snapshot = SharedSnapshot.load()
+        let entry = PrinterEntry(date: .now, snapshot: snapshot)
         // Die App lädt die Timeline bei Änderungen aktiv neu – das Intervall
-        // ist nur ein Fallback, falls die App nicht läuft.
-        let refresh = Calendar.current.date(byAdding: .minute, value: 15, to: .now)!
+        // ist nur ein Fallback. Zum voraussichtlichen Druckende zusätzlich
+        // aktualisieren, damit der Countdown nicht ins Negative läuft.
+        var refresh = Calendar.current.date(byAdding: .minute, value: 15, to: .now)!
+        if let end = snapshot?.estimatedEnd, end > .now, end < refresh {
+            refresh = end.addingTimeInterval(30)
+        }
         completion(Timeline(entries: [entry], policy: .after(refresh)))
     }
 }
@@ -143,7 +156,14 @@ private struct SmallView: View {
                 .minimumScaleFactor(0.6)
             ProgressView(value: Double(snapshot.progressPercent), total: 100)
                 .tint(snapshot.activityColor)
-            if snapshot.isPrinting {
+            if let end = snapshot.estimatedEnd, end > .now {
+                HStack(spacing: 3) {
+                    Image(systemName: "clock")
+                    Text(end, style: .relative) // zählt live herunter
+                }
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+            } else if snapshot.isPrinting {
                 Label(snapshot.remainingText, systemImage: "clock")
                     .font(.caption2)
                     .foregroundStyle(.secondary)
@@ -185,7 +205,14 @@ private struct MediumView: View {
                 ProgressView(value: Double(snapshot.progressPercent), total: 100)
                     .tint(snapshot.activityColor)
                 HStack(spacing: 12) {
-                    Label(snapshot.remainingText, systemImage: "clock")
+                    if let end = snapshot.estimatedEnd, end > .now {
+                        HStack(spacing: 3) {
+                            Image(systemName: "clock")
+                            Text(end, style: .relative) // zählt live herunter
+                        }
+                    } else {
+                        Label(snapshot.remainingText, systemImage: "clock")
+                    }
                     if snapshot.totalLayers > 0 {
                         Label("\(snapshot.currentLayer)/\(snapshot.totalLayers)", systemImage: "square.3.layers.3d")
                     }

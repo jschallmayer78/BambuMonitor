@@ -193,20 +193,36 @@ final class PrinterMonitor {
 
     // MARK: - Widget
 
-    @ObservationIgnored private var lastWidgetState: (Int, PrinterActivity, Int)?
+    @ObservationIgnored private var lastWrittenState: (Int, PrinterActivity, Int)?
+    @ObservationIgnored private var lastReloadState: (Int, PrinterActivity)?
+    @ObservationIgnored private var lastReloadDate: Date = .distantPast
 
     /// Schreibt den aktuellen Zustand in die App Group, damit das
-    /// Desktop-Widget ihn lesen kann. Nur bei sichtbaren Änderungen,
-    /// um unnötige Timeline-Reloads zu vermeiden.
+    /// Desktop-Widget ihn lesen kann.
+    ///
+    /// Wichtig: WidgetKit budgetiert Timeline-Reloads (grob 40–70 pro Tag).
+    /// Ein Reload pro Minute (Restzeit-Änderung) erschöpft das Budget nach
+    /// kurzer Zeit und das Widget friert ein. Daher: Daten bei jeder
+    /// Änderung schreiben, aber Reloads nur bei Statuswechsel sofort und
+    /// bei Fortschritts-Änderungen frühestens alle 3 Minuten anstoßen.
+    /// Die Restzeit zählt das Widget selbst live herunter.
     private func publishWidgetSnapshot() {
-        let state = (snapshot.progressPercent, snapshot.activity, snapshot.remainingMinutes)
-        if let last = lastWidgetState, last == state { return }
-        lastWidgetState = state
+        let writeState = (snapshot.progressPercent, snapshot.activity, snapshot.remainingMinutes)
+        if let last = lastWrittenState, last == writeState { return }
+        lastWrittenState = writeState
 
         guard let defaults = UserDefaults(suiteName: WidgetSnapshot.appGroupID),
               let data = try? JSONEncoder().encode(WidgetSnapshot(from: snapshot, printerName: printerName)) else { return }
         defaults.set(data, forKey: WidgetSnapshot.storageKey)
-        WidgetCenter.shared.reloadAllTimelines()
+
+        let activityChanged = lastReloadState?.1 != snapshot.activity
+        let progressChanged = lastReloadState?.0 != snapshot.progressPercent
+        let now = Date()
+        if activityChanged || (progressChanged && now.timeIntervalSince(lastReloadDate) >= 180) {
+            lastReloadState = (snapshot.progressPercent, snapshot.activity)
+            lastReloadDate = now
+            WidgetCenter.shared.reloadAllTimelines()
+        }
     }
 
     /// Führt ein Teil-Update rekursiv in den Gesamtzustand ein.
