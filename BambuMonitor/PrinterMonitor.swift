@@ -98,14 +98,19 @@ final class PrinterMonitor {
             return
         }
         reconnectTask?.cancel()
+        // Alten Client vollständig stilllegen, sonst melden dessen Callbacks
+        // weiter Statusänderungen und lösen konkurrierende Reconnects aus.
+        client?.onStateChange = nil
+        client?.onMessage = nil
+        client?.disconnect(notify: false)
         mergedReport = [:]
         snapshot = PrinterSnapshot()
 
         let client = BambuMQTTClient(host: printerHost, accessCode: accessCode, serial: printerSerial)
         self.client = client
 
-        client.onStateChange = { [weak self] state in
-            guard let self else { return }
+        client.onStateChange = { [weak self, weak client] state in
+            guard let self, let client, self.client === client else { return }
             switch state {
             case .connecting:
                 self.status = .connecting
@@ -116,8 +121,9 @@ final class PrinterMonitor {
                 self.scheduleReconnect()
             }
         }
-        client.onMessage = { [weak self] _, payload in
-            self?.handleReport(payload)
+        client.onMessage = { [weak self, weak client] _, payload in
+            guard let self, let client, self.client === client else { return }
+            self.handleReport(payload)
         }
         client.connect()
     }

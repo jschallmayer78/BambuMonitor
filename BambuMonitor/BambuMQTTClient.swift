@@ -116,7 +116,10 @@ final class BambuMQTTClient {
         variableHeader.appendUInt16(60) // Keepalive in Sekunden
 
         var payload = Data()
-        payload.appendMQTTString("bambumonitor-\(serial.suffix(6))")
+        // Pro Verbindung eine eindeutige Client-ID: Der Broker beendet
+        // Sessions mit gleicher ID – ein hängender alter Socket würde sonst
+        // mit der neuen Verbindung um die Session kämpfen.
+        payload.appendMQTTString("bambumonitor-\(UUID().uuidString.prefix(8))")
         payload.appendMQTTString("bblp")
         payload.appendMQTTString(accessCode)
 
@@ -266,11 +269,16 @@ final class BambuMQTTClient {
 
     private func startPingTimer() {
         pingTimer?.invalidate()
-        pingTimer = Timer.scheduledTimer(withTimeInterval: 25, repeats: true) { _ in
+        let timer = Timer(timeInterval: 25, repeats: true) { [weak self] _ in
             Task { @MainActor [weak self] in
                 self?.sendPing()
             }
         }
+        // .common statt .default, damit der Ping auch während UI-Interaktion
+        // (offenes Popover, Scrollen) feuert – sonst trennt der Broker
+        // die Verbindung wegen ausbleibender Keepalives.
+        RunLoop.main.add(timer, forMode: .common)
+        pingTimer = timer
     }
 }
 

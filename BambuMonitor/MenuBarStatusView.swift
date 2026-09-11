@@ -174,7 +174,9 @@ private struct CameraCard: View {
     var monitor: PrinterMonitor
     @State private var frame: NSImage?
     @State private var statusText = "Kamera wird verbunden…"
-    @State private var client: BambuCameraClient?
+    @State private var rtspClient: BambuRTSPCameraClient?
+    @State private var jpegClient: BambuCameraClient?
+    @State private var isVisible = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -215,22 +217,67 @@ private struct CameraCard: View {
     }
 
     private func startStream() {
-        let client = BambuCameraClient(host: monitor.printerHost, accessCode: monitor.accessCode)
-        self.client = client
+        isVisible = true
+        startRTSPStream()
+    }
+
+    /// X1-, H2- und P2-Modelle streamen H.264 per RTSPS auf Port 322.
+    private func startRTSPStream() {
+        let client = BambuRTSPCameraClient(host: monitor.printerHost, accessCode: monitor.accessCode)
+        rtspClient = client
         client.onFrame = { image in
             frame = image
         }
-        client.onError = { message in
+        client.onError = { _ in
+            rtspClient?.stop()
+            rtspClient = nil
             if frame == nil {
-                statusText = "\(message)\nBei X1-Modellen muss „LAN-Liveview“ am Drucker aktiviert sein."
+                // RTSP nicht verfügbar → JPEG-Protokoll der P1-/A1-Serie versuchen.
+                startJPEGStream()
+            } else {
+                restartAfterDelay()
             }
         }
         client.start()
     }
 
+    /// P1- und A1-Modelle liefern JPEG-Frames auf Port 6000.
+    private func startJPEGStream() {
+        let client = BambuCameraClient(host: monitor.printerHost, accessCode: monitor.accessCode)
+        jpegClient = client
+        client.onFrame = { image in
+            frame = image
+        }
+        client.onError = { message in
+            jpegClient?.stop()
+            jpegClient = nil
+            if frame == nil {
+                statusText = "\(message)\nAm Drucker muss „LAN-Liveview“ aktiviert sein."
+            } else {
+                restartAfterDelay()
+            }
+        }
+        client.start()
+    }
+
+    /// Verbindung mitten im Stream verloren → kurz warten und neu aufbauen.
+    private func restartAfterDelay() {
+        frame = nil
+        statusText = "Verbindung verloren – neuer Versuch…"
+        Task {
+            try? await Task.sleep(for: .seconds(2))
+            if isVisible && rtspClient == nil && jpegClient == nil {
+                startRTSPStream()
+            }
+        }
+    }
+
     private func stopStream() {
-        client?.stop()
-        client = nil
+        isVisible = false
+        rtspClient?.stop()
+        rtspClient = nil
+        jpegClient?.stop()
+        jpegClient = nil
     }
 }
 
