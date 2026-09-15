@@ -25,6 +25,13 @@ struct BambuMonitorApp: App {
             MenuBarLabel(monitor: monitor)
         }
         .menuBarExtraStyle(.window)
+
+        // Großansicht der Druckerkamera – öffnet per Klick auf das
+        // Kamerabild im Popover.
+        Window("Kamera", id: "camera") {
+            CameraWindowView(monitor: monitor)
+        }
+        .defaultSize(width: 960, height: 600)
     }
 }
 

@@ -200,30 +200,40 @@ private struct StatusCard: View {
 
 // MARK: - Kamera-Karte
 
-/// Zeigt das Live-Bild der Druckerkamera. Der Stream läuft nur, solange
-/// das Popover geöffnet ist. Bambu: RTSP (X1/H2/P2) mit JPEG-Fallback
-/// (P1/A1); Snapmaker U1: Snapshot-Polling über Moonraker.
+/// Zeigt das Live-Bild der Druckerkamera; ein Klick darauf öffnet den
+/// Stream größer in einem eigenen Fenster. Der Karten-Stream läuft nur,
+/// solange das Popover geöffnet ist.
 private struct CameraCard: View {
     var monitor: PrinterMonitor
-    @State private var frame: NSImage?
-    @State private var statusText = "Kamera wird verbunden…"
-    @State private var rtspClient: BambuRTSPCameraClient?
-    @State private var jpegClient: BambuCameraClient?
-    @State private var snapshotClient: HTTPSnapshotCameraClient?
-    @State private var isVisible = false
+    @State private var stream = CameraStreamController()
+    @State private var isHovering = false
+    @Environment(\.openWindow) private var openWindow
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("Kamera")
-                .font(.headline)
-                .foregroundStyle(.white)
+            HStack {
+                Text("Kamera")
+                    .font(.headline)
+                    .foregroundStyle(.white)
+                Spacer()
+                Text("Klicken zum Vergrößern")
+                    .font(.caption2)
+                    .foregroundStyle(Theme.secondaryText)
+                    .opacity(stream.frame != nil ? 1 : 0)
+            }
 
-            ZStack {
-                if let frame {
+            ZStack(alignment: .bottomTrailing) {
+                if let frame = stream.frame {
                     Image(nsImage: frame)
                         .resizable()
                         .aspectRatio(contentMode: .fit)
                         .clipShape(RoundedRectangle(cornerRadius: 10))
+                    Image(systemName: "arrow.up.left.and.arrow.down.right")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.white.opacity(isHovering ? 1 : 0.6))
+                        .padding(6)
+                        .background(.black.opacity(0.45), in: RoundedRectangle(cornerRadius: 6))
+                        .padding(8)
                 } else {
                     RoundedRectangle(cornerRadius: 10)
                         .fill(Theme.innerCard)
@@ -233,7 +243,7 @@ private struct CameraCard: View {
                                 Image(systemName: "video")
                                     .font(.title2)
                                     .foregroundStyle(Theme.secondaryText)
-                                Text(statusText)
+                                Text(stream.statusText)
                                     .font(.caption)
                                     .foregroundStyle(Theme.secondaryText)
                                     .multilineTextAlignment(.center)
@@ -242,101 +252,28 @@ private struct CameraCard: View {
                         )
                 }
             }
+            .contentShape(RoundedRectangle(cornerRadius: 10))
+            .onHover { isHovering = $0 }
+            .onTapGesture(perform: openCameraWindow)
+            .help("Livestream in eigenem Fenster öffnen")
         }
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
         .cardBackground()
         .onAppear(perform: startStream)
-        .onDisappear(perform: stopStream)
+        .onDisappear(perform: stream.stop)
     }
 
     private func startStream() {
-        isVisible = true
-        switch monitor.activeConfig?.kind {
-        case .snapmakerU1:
-            startSnapshotStream()
-        default:
-            startRTSPStream()
-        }
-    }
-
-    /// X1-, H2- und P2-Modelle streamen H.264 per RTSPS auf Port 322.
-    private func startRTSPStream() {
         guard let config = monitor.activeConfig else { return }
-        let client = BambuRTSPCameraClient(host: config.host, accessCode: monitor.activeAccessCode)
-        rtspClient = client
-        client.onFrame = { image in
-            frame = image
-        }
-        client.onError = { _ in
-            rtspClient?.stop()
-            rtspClient = nil
-            if frame == nil {
-                // RTSP nicht verfügbar → JPEG-Protokoll der P1-/A1-Serie versuchen.
-                startJPEGStream()
-            } else {
-                restartAfterDelay()
-            }
-        }
-        client.start()
+        stream.start(config: config, accessCode: monitor.activeAccessCode)
     }
 
-    /// P1- und A1-Modelle liefern JPEG-Frames auf Port 6000.
-    private func startJPEGStream() {
-        guard let config = monitor.activeConfig else { return }
-        let client = BambuCameraClient(host: config.host, accessCode: monitor.activeAccessCode)
-        jpegClient = client
-        client.onFrame = { image in
-            frame = image
-        }
-        client.onError = { message in
-            jpegClient?.stop()
-            jpegClient = nil
-            if frame == nil {
-                statusText = "\(message)\nAm Drucker muss „LAN-Liveview“ aktiviert sein."
-            } else {
-                restartAfterDelay()
-            }
-        }
-        client.start()
-    }
-
-    /// Snapmaker U1: JPEG-Snapshots über die Moonraker-Webcam-API.
-    private func startSnapshotStream() {
-        guard let config = monitor.activeConfig else { return }
-        let client = HTTPSnapshotCameraClient(host: config.host)
-        snapshotClient = client
-        client.onFrame = { image in
-            frame = image
-        }
-        client.onError = { message in
-            if frame == nil {
-                statusText = message
-            }
-        }
-        client.start()
-    }
-
-    /// Verbindung mitten im Stream verloren → kurz warten und neu aufbauen.
-    private func restartAfterDelay() {
-        frame = nil
-        statusText = "Verbindung verloren – neuer Versuch…"
-        Task {
-            try? await Task.sleep(for: .seconds(2))
-            if isVisible && rtspClient == nil && jpegClient == nil && snapshotClient == nil {
-                startStream()
-            }
-        }
-    }
-
-    private func stopStream() {
-        isVisible = false
-        rtspClient?.stop()
-        rtspClient = nil
-        jpegClient?.stop()
-        jpegClient = nil
-        snapshotClient?.stop()
-        snapshotClient = nil
+    private func openCameraWindow() {
+        // Als Menüleisten-App muss die App aktiv sein, damit das Fenster
+        // im Vordergrund erscheint.
+        NSApplication.shared.activate(ignoringOtherApps: true)
+        openWindow(id: "camera")
     }
 }
 
