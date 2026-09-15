@@ -2,19 +2,36 @@
 //  WidgetSnapshot.swift
 //  BambuMonitor
 //
-//  Kompakter Druckerzustand für das Desktop-Widget. Wird über die
-//  App Group (UserDefaults-Suite) zwischen App und Widget-Extension geteilt.
-//  Achtung: Die Widget-Extension hält eine strukturgleiche Kopie –
-//  Änderungen hier müssen dort nachgezogen werden.
+//  Datenaustausch zwischen App und Widgets über die App Group:
+//  pro Drucker ein Snapshot plus eine Drucker-Liste für die
+//  Widget-Konfiguration. Die Widget-Extensions halten strukturgleiche
+//  Kopien dieser Typen – Änderungen dort nachziehen.
 //
 
 import Foundation
 
+/// Eintrag der Drucker-Liste, aus der das Widget seine Auswahl anbietet.
+struct WidgetPrinterInfo: Codable, Identifiable {
+    var id: String   // UUID-String der PrinterConfig
+    var name: String
+}
+
 struct WidgetSnapshot: Codable {
-    // Team-ID-Präfix statt "group." – nötig für Developer-ID-Verteilung
-    // außerhalb des App Store (macOS-Konvention).
+    /// macOS (Developer-ID-Verteilung) verlangt das Team-ID-Präfix,
+    /// iOS zwingend das "group."-Präfix. Mac- und iOS-Seite teilen keine
+    /// Daten untereinander – nur App ↔ Widget auf derselben Plattform.
+    #if os(macOS)
     static let appGroupID = "J3P8T7BG24.BambuMonitor"
-    static let storageKey = "widgetSnapshot"
+    #else
+    static let appGroupID = "group.Meine.BambuMonitor"
+    #endif
+
+    static let printerListKey = "widgetPrinters"
+    static let activePrinterKey = "widgetActivePrinterID"
+
+    static func storageKey(for printerID: String) -> String {
+        "widgetSnapshot-\(printerID)"
+    }
 
     var printerName: String
     var activityRaw: String

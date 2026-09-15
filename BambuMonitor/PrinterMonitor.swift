@@ -2,9 +2,10 @@
 //  PrinterMonitor.swift
 //  BambuMonitor
 //
-//  Orchestriert die konfigurierten Drucker: verwaltet die Drucker-Liste,
-//  den aktiven Drucker und dessen Treiber, und übersetzt Snapshot-Updates
-//  in UI-Zustand, Benachrichtigungen und Widget-Daten.
+//  Orchestriert die konfigurierten Drucker: hält für JEDEN vollständig
+//  konfigurierten Drucker einen laufenden Treiber (damit Widgets und
+//  Benachrichtigungen alle Drucker abdecken), zeigt in der UI den
+//  aktiven Drucker und schreibt pro Drucker Widget-Daten in die App Group.
 //
 
 import Foundation
@@ -35,10 +36,16 @@ final class PrinterMonitor {
     // MARK: - Drucker-Liste (persistiert in UserDefaults)
 
     private(set) var printers: [PrinterConfig] {
-        didSet { persistPrinters() }
+        didSet {
+            persistPrinters()
+            publishPrinterDirectory()
+        }
     }
     private(set) var activePrinterID: UUID? {
-        didSet { UserDefaults.standard.set(activePrinterID?.uuidString, forKey: "activePrinterID") }
+        didSet {
+            UserDefaults.standard.set(activePrinterID?.uuidString, forKey: "activePrinterID")
+            publishPrinterDirectory()
+        }
     }
 
     /// Access Code des aktiven Druckers (nur Bambu; liegt im Keychain).
@@ -63,14 +70,29 @@ final class PrinterMonitor {
     /// Solange kein Drucker konfiguriert ist, zeigt die UI Beispieldaten.
     var isDemoMode: Bool { printers.isEmpty }
 
-    // MARK: - Zustand des aktiven Druckers
+    // MARK: - Zustand pro Drucker
 
-    private(set) var snapshot = PrinterSnapshot()
-    private(set) var status: ConnectionStatus = .notConfigured
-    private(set) var lastUpdate: Date?
+    private(set) var snapshots: [UUID: PrinterSnapshot] = [:]
+    private(set) var statuses: [UUID: ConnectionStatus] = [:]
+    private(set) var lastUpdates: [UUID: Date] = [:]
 
-    @ObservationIgnored private var driver: PrinterDriver?
-    @ObservationIgnored private var reconnectTask: Task<Void, Never>?
+    /// Zustand des aktiven Druckers – Schnittstelle für die UI.
+    var snapshot: PrinterSnapshot {
+        if let id = activePrinterID, let s = snapshots[id] { return s }
+        return isDemoMode ? .demo : PrinterSnapshot()
+    }
+
+    var status: ConnectionStatus {
+        guard let id = activePrinterID else { return .notConfigured }
+        return statuses[id] ?? .notConfigured
+    }
+
+    var lastUpdate: Date? {
+        activePrinterID.flatMap { lastUpdates[$0] }
+    }
+
+    @ObservationIgnored private var drivers: [UUID: PrinterDriver] = [:]
+    @ObservationIgnored private var reconnectTasks: [UUID: Task<Void, Never>] = [:]
 
     // MARK: - Initialisierung
 
@@ -93,12 +115,8 @@ final class PrinterMonitor {
             activePrinterID = printers.first?.id
         }
         loadActiveAccessCode()
-
-        if isConfigured {
-            connect()
-        } else if isDemoMode {
-            snapshot = .demo
-        }
+        publishPrinterDirectory()
+        connect()
     }
 
     /// Übernimmt die Einzeldrucker-Konfiguration aus Versionen vor der
@@ -143,33 +161,29 @@ final class PrinterMonitor {
 
     func selectPrinter(_ id: UUID) {
         guard id != activePrinterID, printers.contains(where: { $0.id == id }) else { return }
-        disconnect()
+        // Die Treiber laufen für alle Drucker weiter – nur die Anzeige wechselt.
         activePrinterID = id
         loadActiveAccessCode()
-        snapshot = PrinterSnapshot()
-        connect()
     }
 
     func addPrinter(kind: PrinterKind) {
         let config = PrinterConfig(kind: kind, name: kind.defaultPrinterName)
         printers.append(config)
-        disconnect()
         activePrinterID = config.id
         loadActiveAccessCode()
-        snapshot = PrinterSnapshot()
-        status = .notConfigured
     }
 
     func removeActivePrinter() {
         guard let id = activePrinterID else { return }
-        disconnect()
+        stopDriver(for: id)
         KeychainHelper.deleteAccessCode(for: id)
         printers.removeAll { $0.id == id }
+        snapshots[id] = nil
+        statuses[id] = nil
+        lastUpdates[id] = nil
+        removeWidgetData(for: id)
         activePrinterID = printers.first?.id
         loadActiveAccessCode()
-        snapshot = isDemoMode ? .demo : PrinterSnapshot()
-        status = .notConfigured
-        if isConfigured { connect() }
     }
 
     /// Ändert Felder der aktiven Konfiguration (für UI-Bindings).
@@ -178,89 +192,111 @@ final class PrinterMonitor {
         transform(&printers[index])
     }
 
-    // MARK: - Verbindung
+    // MARK: - Verbindungen
 
+    /// Baut die Treiber für ALLE vollständig konfigurierten Drucker (neu) auf.
     func connect() {
-        guard let config = activeConfig, isConfigured else {
-            status = .notConfigured
-            if isDemoMode { snapshot = .demo }
-            return
+        disconnect()
+        for config in printers where config.isComplete {
+            startDriver(for: config)
         }
-        reconnectTask?.cancel()
-        driver?.onSnapshot = nil
-        driver?.onStatus = nil
-        driver?.disconnect()
-        snapshot = PrinterSnapshot()
-
-        let driver: PrinterDriver
-        switch config.kind {
-        case .bambu:
-            driver = BambuDriver(host: config.host, serial: config.serial, accessCode: activeAccessCode)
-        case .snapmakerU1:
-            driver = SnapmakerU1Driver(host: config.host)
-        }
-        self.driver = driver
-
-        driver.onStatus = { [weak self, weak driver] newStatus in
-            guard let self, let driver, self.driver === driver else { return }
-            self.status = newStatus
-            if case .disconnected = newStatus {
-                self.scheduleReconnectIfNeeded()
-            }
-        }
-        driver.onSnapshot = { [weak self, weak driver] newSnapshot in
-            guard let self, let driver, self.driver === driver else { return }
-            self.lastUpdate = Date()
-            let previousActivity = self.snapshot.activity
-            self.snapshot = newSnapshot
-            self.notifyOnPrintEnd(previous: previousActivity, current: newSnapshot.activity)
-            self.publishWidgetSnapshot()
-        }
-        driver.connect()
     }
 
     func disconnect() {
-        reconnectTask?.cancel()
-        driver?.onSnapshot = nil
-        driver?.onStatus = nil
-        driver?.disconnect()
-        driver = nil
-        status = isConfigured ? .disconnected(nil) : .notConfigured
+        for id in drivers.keys {
+            reconnectTasks[id]?.cancel()
+        }
+        reconnectTasks.removeAll()
+        for (_, driver) in drivers {
+            driver.onSnapshot = nil
+            driver.onStatus = nil
+            driver.disconnect()
+        }
+        drivers.removeAll()
     }
 
     func refresh() {
-        if status == .connected {
-            driver?.refresh()
+        if let id = activePrinterID, let driver = drivers[id] {
+            driver.refresh()
         } else {
             connect()
         }
     }
 
+    private func startDriver(for config: PrinterConfig) {
+        stopDriver(for: config.id)
+
+        let driver: PrinterDriver
+        switch config.kind {
+        case .bambu:
+            let accessCode = KeychainHelper.loadAccessCode(for: config.id) ?? ""
+            guard !accessCode.isEmpty else {
+                statuses[config.id] = .notConfigured
+                return
+            }
+            driver = BambuDriver(host: config.host, serial: config.serial, accessCode: accessCode)
+        case .snapmakerU1:
+            driver = SnapmakerU1Driver(host: config.host)
+        }
+        drivers[config.id] = driver
+        let printerID = config.id
+
+        driver.onStatus = { [weak self, weak driver] newStatus in
+            guard let self, let driver, self.drivers[printerID] === driver else { return }
+            self.statuses[printerID] = newStatus
+            if case .disconnected = newStatus, config.kind == .bambu {
+                self.scheduleReconnect(for: config)
+            }
+        }
+        driver.onSnapshot = { [weak self, weak driver] newSnapshot in
+            guard let self, let driver, self.drivers[printerID] === driver else { return }
+            let previous = self.snapshots[printerID]?.activity ?? .unknown
+            self.snapshots[printerID] = newSnapshot
+            self.lastUpdates[printerID] = Date()
+            self.notifyOnPrintEnd(previous: previous, current: newSnapshot, printerName: config.name)
+            self.publishWidgetSnapshot(for: printerID, printerName: config.name)
+        }
+        driver.connect()
+    }
+
+    private func stopDriver(for id: UUID) {
+        reconnectTasks[id]?.cancel()
+        reconnectTasks[id] = nil
+        if let driver = drivers[id] {
+            driver.onSnapshot = nil
+            driver.onStatus = nil
+            driver.disconnect()
+            drivers[id] = nil
+        }
+    }
+
     /// Der U1-Treiber pollt selbstständig weiter; nur verbindungsorientierte
     /// Treiber (Bambu-MQTT) brauchen einen Neuaufbau.
-    private func scheduleReconnectIfNeeded() {
-        guard activeConfig?.kind == .bambu else { return }
-        reconnectTask?.cancel()
-        reconnectTask = Task { [weak self] in
+    private func scheduleReconnect(for config: PrinterConfig) {
+        reconnectTasks[config.id]?.cancel()
+        reconnectTasks[config.id] = Task { [weak self] in
             try? await Task.sleep(for: .seconds(10))
             guard !Task.isCancelled else { return }
-            self?.connect()
+            self?.startDriver(for: config)
         }
     }
 
     // MARK: - Benachrichtigungen
 
     /// Meldet das Ende eines Drucks (fertig oder fehlgeschlagen) als Systembenachrichtigung.
-    private func notifyOnPrintEnd(previous: PrinterActivity, current: PrinterActivity) {
-        guard previous == .printing || previous == .paused, current != previous else { return }
+    private func notifyOnPrintEnd(previous: PrinterActivity, current: PrinterSnapshot, printerName: String) {
+        guard previous == .printing || previous == .paused, current.activity != previous else { return }
         let title: String
-        switch current {
+        switch current.activity {
         case .finished: title = "Druck abgeschlossen"
         case .failed: title = "Druck fehlgeschlagen"
         default: return
         }
-        let printerName = activeConfig?.name ?? "Drucker"
-        let body = snapshot.taskName.isEmpty ? printerName : "\(snapshot.taskName) auf \(printerName)"
+        let body = current.taskName.isEmpty ? printerName : "\(current.taskName) auf \(printerName)"
+        Self.postNotification(title: title, body: body)
+    }
+
+    static func postNotification(title: String, body: String) {
         let center = UNUserNotificationCenter.current()
         center.requestAuthorization(options: [.alert, .sound]) { granted, _ in
             guard granted else { return }
@@ -272,35 +308,50 @@ final class PrinterMonitor {
         }
     }
 
-    // MARK: - Widget
+    // MARK: - Widgets
 
-    @ObservationIgnored private var lastWrittenState: (Int, PrinterActivity, Int)?
-    @ObservationIgnored private var lastReloadState: (Int, PrinterActivity)?
+    @ObservationIgnored private var lastWrittenStates: [UUID: (Int, PrinterActivity, Int)] = [:]
+    @ObservationIgnored private var lastReloadStates: [UUID: (Int, PrinterActivity)] = [:]
     @ObservationIgnored private var lastReloadDate: Date = .distantPast
 
-    /// Schreibt den aktuellen Zustand in die App Group, damit das
-    /// Desktop-Widget ihn lesen kann.
+    /// Liste aller Drucker plus aktiver Drucker – Basis für die
+    /// Drucker-Auswahl in der Widget-Konfiguration.
+    private func publishPrinterDirectory() {
+        guard let defaults = UserDefaults(suiteName: WidgetSnapshot.appGroupID) else { return }
+        let list = printers.map { WidgetPrinterInfo(id: $0.id.uuidString, name: $0.name) }
+        if let data = try? JSONEncoder().encode(list) {
+            defaults.set(data, forKey: WidgetSnapshot.printerListKey)
+        }
+        defaults.set(activePrinterID?.uuidString, forKey: WidgetSnapshot.activePrinterKey)
+    }
+
+    private func removeWidgetData(for id: UUID) {
+        UserDefaults(suiteName: WidgetSnapshot.appGroupID)?
+            .removeObject(forKey: WidgetSnapshot.storageKey(for: id.uuidString))
+    }
+
+    /// Schreibt den Zustand eines Druckers in die App Group.
     ///
     /// Wichtig: WidgetKit budgetiert Timeline-Reloads (grob 40–70 pro Tag).
-    /// Ein Reload pro Minute (Restzeit-Änderung) erschöpft das Budget nach
-    /// kurzer Zeit und das Widget friert ein. Daher: Daten bei jeder
-    /// Änderung schreiben, aber Reloads nur bei Statuswechsel sofort und
-    /// bei Fortschritts-Änderungen frühestens alle 3 Minuten anstoßen.
-    /// Die Restzeit zählt das Widget selbst live herunter.
-    private func publishWidgetSnapshot() {
-        let writeState = (snapshot.progressPercent, snapshot.activity, snapshot.remainingMinutes)
-        if let last = lastWrittenState, last == writeState { return }
-        lastWrittenState = writeState
+    /// Daher: Daten bei jeder Änderung schreiben, aber Reloads nur bei
+    /// Statuswechsel sofort und bei Fortschritts-Änderungen frühestens
+    /// alle 3 Minuten anstoßen. Die Restzeit zählt das Widget selbst
+    /// live herunter.
+    private func publishWidgetSnapshot(for id: UUID, printerName: String) {
+        guard let current = snapshots[id] else { return }
+        let writeState = (current.progressPercent, current.activity, current.remainingMinutes)
+        if let last = lastWrittenStates[id], last == writeState { return }
+        lastWrittenStates[id] = writeState
 
         guard let defaults = UserDefaults(suiteName: WidgetSnapshot.appGroupID),
-              let data = try? JSONEncoder().encode(WidgetSnapshot(from: snapshot, printerName: activeConfig?.name ?? "Drucker")) else { return }
-        defaults.set(data, forKey: WidgetSnapshot.storageKey)
+              let data = try? JSONEncoder().encode(WidgetSnapshot(from: current, printerName: printerName)) else { return }
+        defaults.set(data, forKey: WidgetSnapshot.storageKey(for: id.uuidString))
 
-        let activityChanged = lastReloadState?.1 != snapshot.activity
-        let progressChanged = lastReloadState?.0 != snapshot.progressPercent
+        let activityChanged = lastReloadStates[id]?.1 != current.activity
+        let progressChanged = lastReloadStates[id]?.0 != current.progressPercent
         let now = Date()
         if activityChanged || (progressChanged && now.timeIntervalSince(lastReloadDate) >= 180) {
-            lastReloadState = (snapshot.progressPercent, snapshot.activity)
+            lastReloadStates[id] = (current.progressPercent, current.activity)
             lastReloadDate = now
             WidgetCenter.shared.reloadAllTimelines()
         }

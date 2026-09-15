@@ -13,6 +13,12 @@ struct PrintMonMobileApp: App {
     @State private var monitor = PrinterMonitor()
     @Environment(\.scenePhase) private var scenePhase
 
+    init() {
+        // Muss vor Abschluss des App-Starts registriert sein.
+        BackgroundRefresh.register()
+        BackgroundRefresh.requestNotificationAuthorization()
+    }
+
     var body: some Scene {
         WindowGroup {
             ContentView(monitor: monitor)
@@ -24,7 +30,9 @@ struct PrintMonMobileApp: App {
             case .active:
                 if monitor.isConfigured { monitor.connect() }
             case .background:
+                BackgroundRefresh.syncLastActivities(monitor: monitor)
                 monitor.disconnect()
+                BackgroundRefresh.schedule()
             default:
                 break
             }

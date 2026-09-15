@@ -11,6 +11,9 @@
 		300777433053D4B000F92712 /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 300777423053D4B000F92712 /* SwiftUI.framework */; };
 		300777523053D4B100F92712 /* BambuMonitorWidgetExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 3007773E3053D4B000F92712 /* BambuMonitorWidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		3007775E3053E18700F92712 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = 3007775D3053E18700F92712 /* Sparkle */; };
+		302BB1853059730E004308EB /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 300777403053D4B000F92712 /* WidgetKit.framework */; };
+		302BB1863059730E004308EB /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 300777423053D4B000F92712 /* SwiftUI.framework */; };
+		302BB1913059730F004308EB /* PrintMonWidgetExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 302BB1843059730E004308EB /* PrintMonWidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -35,6 +38,13 @@
 			remoteGlobalIDString = 3007773D3053D4B000F92712;
 			remoteInfo = BambuMonitorWidgetExtension;
 		};
+		302BB18F3059730F004308EB /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 300776F83053CDA800F92712 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 302BB1833059730E004308EB;
+			remoteInfo = PrintMonWidgetExtension;
+		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -45,6 +55,17 @@
 			dstSubfolderSpec = 13;
 			files = (
 				300777523053D4B100F92712 /* BambuMonitorWidgetExtension.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		302BB1963059730F004308EB /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				302BB1913059730F004308EB /* PrintMonWidgetExtension.appex in Embed Foundation Extensions */,
 			);
 			name = "Embed Foundation Extensions";
 			runOnlyForDeploymentPostprocessing = 0;
@@ -60,6 +81,8 @@
 		300777423053D4B000F92712 /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
 		300777593053D51B00F92712 /* BambuMonitorWidgetExtension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = BambuMonitorWidgetExtension.entitlements; sourceTree = "<group>"; };
 		302BB16330596D16004308EB /* PrintMonMobile.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = PrintMonMobile.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		302BB1843059730E004308EB /* PrintMonWidgetExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = PrintMonWidgetExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		302BB19730597318004308EB /* PrintMonWidgetExtension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = PrintMonWidgetExtension.entitlements; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -102,6 +125,21 @@
 			);
 			target = 302BB16230596D16004308EB /* PrintMonMobile */;
 		};
+		302BB1953059730F004308EB /* Exceptions for "PrintMonWidget" folder in "PrintMonWidgetExtension" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 302BB1833059730E004308EB /* PrintMonWidgetExtension */;
+		};
+		302BB19A30597394004308EB /* Exceptions for "BambuMonitorWidget" folder in "PrintMonWidgetExtension" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				BambuMonitorWidget.swift,
+				BambuMonitorWidgetBundle.swift,
+			);
+			target = 302BB1833059730E004308EB /* PrintMonWidgetExtension */;
+		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -128,6 +166,7 @@
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
 				300777533053D4B100F92712 /* Exceptions for "BambuMonitorWidget" folder in "BambuMonitorWidgetExtension" target */,
+				302BB19A30597394004308EB /* Exceptions for "BambuMonitorWidget" folder in "PrintMonWidgetExtension" target */,
 			);
 			path = BambuMonitorWidget;
 			sourceTree = "<group>";
@@ -138,6 +177,14 @@
 				302BB16F30596D48004308EB /* Exceptions for "PrintMonMobile" folder in "PrintMonMobile" target */,
 			);
 			path = PrintMonMobile;
+			sourceTree = "<group>";
+		};
+		302BB1873059730E004308EB /* PrintMonWidget */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				302BB1953059730F004308EB /* Exceptions for "PrintMonWidget" folder in "PrintMonWidgetExtension" target */,
+			);
+			path = PrintMonWidget;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -181,18 +228,29 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		302BB1813059730E004308EB /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				302BB1863059730E004308EB /* SwiftUI.framework in Frameworks */,
+				302BB1853059730E004308EB /* WidgetKit.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
 		300776F73053CDA800F92712 = {
 			isa = PBXGroup;
 			children = (
+				302BB19730597318004308EB /* PrintMonWidgetExtension.entitlements */,
 				300777593053D51B00F92712 /* BambuMonitorWidgetExtension.entitlements */,
 				300777023053CDA800F92712 /* BambuMonitor */,
 				300777123053CDA900F92712 /* BambuMonitorTests */,
 				3007771C3053CDA900F92712 /* BambuMonitorUITests */,
 				300777443053D4B000F92712 /* BambuMonitorWidget */,
 				302BB16430596D16004308EB /* PrintMonMobile */,
+				302BB1873059730E004308EB /* PrintMonWidget */,
 				3007773F3053D4B000F92712 /* Frameworks */,
 				300777013053CDA800F92712 /* Products */,
 			);
@@ -206,6 +264,7 @@
 				300777193053CDA900F92712 /* BambuMonitorUITests.xctest */,
 				3007773E3053D4B000F92712 /* BambuMonitorWidgetExtension.appex */,
 				302BB16330596D16004308EB /* PrintMonMobile.app */,
+				302BB1843059730E004308EB /* PrintMonWidgetExtension.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -322,10 +381,12 @@
 				302BB15F30596D16004308EB /* Sources */,
 				302BB16030596D16004308EB /* Frameworks */,
 				302BB16130596D16004308EB /* Resources */,
+				302BB1963059730F004308EB /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				302BB1903059730F004308EB /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				302BB16430596D16004308EB /* PrintMonMobile */,
@@ -336,6 +397,28 @@
 			productName = PrintMonMobile;
 			productReference = 302BB16330596D16004308EB /* PrintMonMobile.app */;
 			productType = "com.apple.product-type.application";
+		};
+		302BB1833059730E004308EB /* PrintMonWidgetExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 302BB1923059730F004308EB /* Build configuration list for PBXNativeTarget "PrintMonWidgetExtension" */;
+			buildPhases = (
+				302BB1803059730E004308EB /* Sources */,
+				302BB1813059730E004308EB /* Frameworks */,
+				302BB1823059730E004308EB /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				302BB1873059730E004308EB /* PrintMonWidget */,
+			);
+			name = PrintMonWidgetExtension;
+			packageProductDependencies = (
+			);
+			productName = PrintMonWidgetExtension;
+			productReference = 302BB1843059730E004308EB /* PrintMonWidgetExtension.appex */;
+			productType = "com.apple.product-type.app-extension";
 		};
 /* End PBXNativeTarget section */
 
@@ -364,6 +447,9 @@
 					302BB16230596D16004308EB = {
 						CreatedOnToolsVersion = 27.0;
 					};
+					302BB1833059730E004308EB = {
+						CreatedOnToolsVersion = 27.0;
+					};
 				};
 			};
 			buildConfigurationList = 300776FB3053CDA800F92712 /* Build configuration list for PBXProject "BambuMonitor" */;
@@ -388,6 +474,7 @@
 				300777183053CDA900F92712 /* BambuMonitorUITests */,
 				3007773D3053D4B000F92712 /* BambuMonitorWidgetExtension */,
 				302BB16230596D16004308EB /* PrintMonMobile */,
+				302BB1833059730E004308EB /* PrintMonWidgetExtension */,
 			);
 		};
 /* End PBXProject section */
@@ -422,6 +509,13 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		302BB16130596D16004308EB /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		302BB1823059730E004308EB /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -466,6 +560,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		302BB1803059730E004308EB /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -483,6 +584,11 @@
 			isa = PBXTargetDependency;
 			target = 3007773D3053D4B000F92712 /* BambuMonitorWidgetExtension */;
 			targetProxy = 300777503053D4B100F92712 /* PBXContainerItemProxy */;
+		};
+		302BB1903059730F004308EB /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 302BB1833059730E004308EB /* PrintMonWidgetExtension */;
+			targetProxy = 302BB18F3059730F004308EB /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -874,6 +980,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = PrintMonMobile/PrintMonMobile.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				ENABLE_APP_SANDBOX = YES;
@@ -919,6 +1026,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = PrintMonMobile/PrintMonMobile.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				ENABLE_APP_SANDBOX = YES;
@@ -955,6 +1063,90 @@
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
+				XROS_DEPLOYMENT_TARGET = 27.0;
+			};
+			name = Release;
+		};
+		302BB1933059730F004308EB /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_ENTITLEMENTS = PrintMonWidgetExtension.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_APP_SANDBOX = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = PrintMonWidget/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = PrintMonWidget;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 27.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 27.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = Meine.PrintMonMobile.PrintMonWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				REGISTER_APP_GROUPS = YES;
+				SDKROOT = auto;
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2,7";
+				XROS_DEPLOYMENT_TARGET = 27.0;
+			};
+			name = Debug;
+		};
+		302BB1943059730F004308EB /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_ENTITLEMENTS = PrintMonWidgetExtension.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_APP_SANDBOX = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = PrintMonWidget/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = PrintMonWidget;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 27.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 27.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = Meine.PrintMonMobile.PrintMonWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				REGISTER_APP_GROUPS = YES;
+				SDKROOT = auto;
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2,7";
 				XROS_DEPLOYMENT_TARGET = 27.0;
 			};
 			name = Release;
@@ -1012,6 +1204,15 @@
 			buildConfigurations = (
 				302BB16C30596D16004308EB /* Debug */,
 				302BB16D30596D16004308EB /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		302BB1923059730F004308EB /* Build configuration list for PBXNativeTarget "PrintMonWidgetExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				302BB1933059730F004308EB /* Debug */,
+				302BB1943059730F004308EB /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
