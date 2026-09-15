@@ -240,8 +240,8 @@ struct BambuMonitorWidget: Widget {
                 .environment(\.colorScheme, .dark)
                 .foregroundStyle(.white)
         }
-        .configurationDisplayName("Bambu Drucker")
-        .description("Zeigt den aktuellen Status deines Bambu Lab Druckers.")
+        .configurationDisplayName("Joe's 3D PrintMon")
+        .description("Zeigt den aktuellen Status deines 3D-Druckers.")
         .supportedFamilies([.systemSmall, .systemMedium])
     }
 }

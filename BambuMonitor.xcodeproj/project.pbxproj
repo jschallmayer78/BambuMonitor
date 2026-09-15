@@ -52,7 +52,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
-		300777003053CDA800F92712 /* BambuMonitor.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = BambuMonitor.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		300777003053CDA800F92712 /* Joe's 3D PrintMon.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Joe's 3D PrintMon.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		3007770F3053CDA900F92712 /* BambuMonitorTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = BambuMonitorTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		300777193053CDA900F92712 /* BambuMonitorUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = BambuMonitorUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		3007773E3053D4B000F92712 /* BambuMonitorWidgetExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = BambuMonitorWidgetExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -158,7 +158,7 @@
 		300777013053CDA800F92712 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				300777003053CDA800F92712 /* BambuMonitor.app */,
+				300777003053CDA800F92712 /* Joe's 3D PrintMon.app */,
 				3007770F3053CDA900F92712 /* BambuMonitorTests.xctest */,
 				300777193053CDA900F92712 /* BambuMonitorUITests.xctest */,
 				3007773E3053D4B000F92712 /* BambuMonitorWidgetExtension.appex */,
@@ -200,7 +200,7 @@
 				3007775D3053E18700F92712 /* Sparkle */,
 			);
 			productName = BambuMonitor;
-			productReference = 300777003053CDA800F92712 /* BambuMonitor.app */;
+			productReference = 300777003053CDA800F92712 /* Joe's 3D PrintMon.app */;
 			productType = "com.apple.product-type.application";
 		};
 		3007770E3053CDA900F92712 /* BambuMonitorTests */ = {
@@ -559,7 +559,7 @@
 				);
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = Meine.BambuMonitor;
-				PRODUCT_NAME = "$(TARGET_NAME)";
+				PRODUCT_NAME = "Joe's 3D PrintMon";
 				REGISTER_APP_GROUPS = YES;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
@@ -606,7 +606,7 @@
 				);
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = Meine.BambuMonitor;
-				PRODUCT_NAME = "$(TARGET_NAME)";
+				PRODUCT_NAME = "Joe's 3D PrintMon";
 				REGISTER_APP_GROUPS = YES;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
@@ -634,7 +634,7 @@
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/BambuMonitor.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/BambuMonitor";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Joe's 3D PrintMon.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Joe's 3D PrintMon";
 			};
 			name = Debug;
 		};
@@ -655,7 +655,7 @@
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/BambuMonitor.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/BambuMonitor";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Joe's 3D PrintMon.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Joe's 3D PrintMon";
 			};
 			name = Release;
 		};

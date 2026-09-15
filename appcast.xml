@@ -4,7 +4,7 @@
      Für jedes Release einen neuen <item>-Block ergänzen (siehe RELEASING.md). -->
 <rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
     <channel>
-        <title>BambuMonitor Updates</title>
+        <title>Joe's 3D PrintMon Updates</title>
         <!-- Beispiel-Item; bei jedem Release kopieren und anpassen:
         <item>
             <title>Version 1.1</title>
@@ -14,7 +14,7 @@
             <pubDate>Thu, 11 Sep 2026 12:00:00 +0200</pubDate>
             <description><![CDATA[<ul><li>Änderung 1</li><li>Änderung 2</li></ul>]]></description>
             <enclosure
-                url="https://github.com/jschallmayer78/BambuMonitor/releases/download/v1.1/BambuMonitor-1.1.zip"
+                url="https://github.com/jschallmayer78/BambuMonitor/releases/download/v1.1/Joes-3D-PrintMon-1.1.zip"
                 sparkle:edSignature="AUSGABE-VON-sign_update"
                 length="AUSGABE-VON-sign_update"
                 type="application/octet-stream" />

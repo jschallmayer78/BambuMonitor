@@ -1,4 +1,9 @@
-# Release-Anleitung für BambuMonitor
+# Release-Anleitung für Joe's 3D PrintMon
+
+Die App heißt nach außen „Joe's 3D PrintMon"; intern (Targets, Schemes,
+Bundle-ID `Meine.BambuMonitor`, Repo) bleibt der Name BambuMonitor —
+die Bundle-ID darf sich nie ändern, sonst brechen Sparkle-Updates,
+App Group und Keychain-Zugriff.
 
 Verteilung außerhalb des App Store per Developer ID + Notarisierung,
 Auto-Updates über Sparkle (Feed: `appcast.xml` im main-Branch).
@@ -19,13 +24,14 @@ Auto-Updates über Sparkle (Feed: `appcast.xml` im main-Branch).
 2. **Archivieren & notarisieren**: Product → Archive → Organizer →
    *Distribute App* → *Direct Distribution*. Warten bis die Notarisierung
    durch ist, dann *Export* → ergibt `BambuMonitor.app`.
-3. **ZIP erstellen** (ditto erhält die Signatur):
+3. **ZIP erstellen** (ditto erhält die Signatur; ZIP-Name ohne
+   Apostroph, damit URLs und Shell-Befehle einfach bleiben):
    ```sh
-   ditto -c -k --keepParent BambuMonitor.app BambuMonitor-1.1.zip
+   ditto -c -k --keepParent "Joe's 3D PrintMon.app" Joes-3D-PrintMon-1.1.zip
    ```
 4. **Update signieren** (Pfad ggf. an DerivedData anpassen):
    ```sh
-   ~/Library/Developer/Xcode/DerivedData/BambuMonitor-*/SourcePackages/artifacts/sparkle/Sparkle/bin/sign_update BambuMonitor-1.1.zip
+   ~/Library/Developer/Xcode/DerivedData/BambuMonitor-*/SourcePackages/artifacts/sparkle/Sparkle/bin/sign_update Joes-3D-PrintMon-1.1.zip
    ```
    Die Ausgabe liefert `sparkle:edSignature="…" length="…"`.
 5. **appcast.xml ergänzen**: Neues `<item>` nach dem Muster im Template
