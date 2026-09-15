@@ -422,7 +422,11 @@ private struct SettingsSheet: View {
                     Section("\(config.name) bearbeiten") {
                         TextField("Name", text: configField(\.name))
                         TextField("IP-Adresse", text: configField(\.host))
-                            .keyboardType(.decimalPad)
+                            // .decimalPad zeigt in deutscher Locale ein Komma
+                            // statt Punkt – die URL-Tastatur hat den Punkt
+                            // und erlaubt auch Hostnamen.
+                            .keyboardType(.URL)
+                            .textInputAutocapitalization(.never)
                             .autocorrectionDisabled()
                         if config.kind == .bambu {
                             TextField("Seriennummer", text: configField(\.serial))
