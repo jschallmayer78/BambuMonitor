@@ -9,13 +9,17 @@
 //
 
 import SwiftUI
-import AppKit
 import Observation
+#if canImport(AppKit)
+import AppKit
+#else
+import UIKit
+#endif
 
 @Observable
 @MainActor
 final class CameraStreamController {
-    private(set) var frame: NSImage?
+    private(set) var frame: PlatformImage?
     private(set) var statusText = "Kamera wird verbunden…"
 
     @ObservationIgnored private var config: PrinterConfig?
@@ -135,7 +139,7 @@ struct CameraWindowView: View {
         ZStack {
             Color.black
             if let frame = stream.frame {
-                Image(nsImage: frame)
+                Image(platformImage: frame)
                     .resizable()
                     .aspectRatio(contentMode: .fit)
             } else {

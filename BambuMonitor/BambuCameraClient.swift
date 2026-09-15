@@ -11,12 +11,16 @@
 
 import Foundation
 import Network
+#if canImport(AppKit)
 import AppKit
+#else
+import UIKit
+#endif
 
 @MainActor
 final class BambuCameraClient {
 
-    var onFrame: ((NSImage) -> Void)?
+    var onFrame: ((PlatformImage) -> Void)?
     var onError: ((String) -> Void)?
 
     private let host: String
@@ -112,7 +116,7 @@ final class BambuCameraClient {
                 let frameData = buffer.subdata(in: buffer.startIndex..<(buffer.startIndex + expected))
                 buffer.removeFirst(expected)
                 expectedPayloadSize = nil
-                if let image = NSImage(data: frameData) {
+                if let image = PlatformImage(data: frameData) {
                     onFrame?(image)
                 }
             } else {

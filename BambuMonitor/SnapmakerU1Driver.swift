@@ -10,7 +10,11 @@
 //
 
 import Foundation
+#if canImport(AppKit)
 import AppKit
+#else
+import UIKit
+#endif
 
 @MainActor
 final class SnapmakerU1Driver: PrinterDriver {
@@ -192,7 +196,7 @@ final class SnapmakerU1Driver: PrinterDriver {
 /// aufwändiger; für die Popover-Vorschau reicht das Snapshot-Polling.
 @MainActor
 final class HTTPSnapshotCameraClient {
-    var onFrame: ((NSImage) -> Void)?
+    var onFrame: ((PlatformImage) -> Void)?
     var onError: ((String) -> Void)?
 
     private let snapshotURL: URL?
@@ -230,7 +234,7 @@ final class HTTPSnapshotCameraClient {
 
         do {
             let (data, _) = try await URLSession.shared.data(for: request)
-            guard let image = NSImage(data: data) else { throw URLError(.cannotDecodeContentData) }
+            guard let image = PlatformImage(data: data) else { throw URLError(.cannotDecodeContentData) }
             consecutiveFailures = 0
             onFrame?(image)
         } catch {

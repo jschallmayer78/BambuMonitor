@@ -10,16 +10,20 @@
 
 import Foundation
 import Network
-import AppKit
 import CryptoKit
 import CoreMedia
 import CoreImage
 import VideoToolbox
+#if canImport(AppKit)
+import AppKit
+#else
+import UIKit
+#endif
 
 @MainActor
 final class BambuRTSPCameraClient {
 
-    var onFrame: ((NSImage) -> Void)?
+    var onFrame: ((PlatformImage) -> Void)?
     var onError: ((String) -> Void)?
     /// Nur für Diagnose – meldet Handshake-Schritte und Streamzustand.
     var onDebug: ((String) -> Void)?
@@ -441,7 +445,7 @@ private final class H264Decoder {
     }
 
     /// Dekodiert ein Access Unit (VCL-NALs eines Bildes) und liefert das Bild.
-    func decode(nalUnits: [Data]) -> NSImage? {
+    func decode(nalUnits: [Data]) -> PlatformImage? {
         guard ensureSession() else { return nil }
         guard let session, let formatDescription else { return nil }
 
@@ -489,7 +493,7 @@ private final class H264Decoder {
         guard let imageBuffer = box.imageBuffer else { return nil }
         let ciImage = CIImage(cvImageBuffer: imageBuffer)
         guard let cgImage = ciContext.createCGImage(ciImage, from: ciImage.extent) else { return nil }
-        return NSImage(cgImage: cgImage, size: NSSize(width: ciImage.extent.width, height: ciImage.extent.height))
+        return PlatformImage.fromCGImage(cgImage)
     }
 
     private func ensureSession() -> Bool {

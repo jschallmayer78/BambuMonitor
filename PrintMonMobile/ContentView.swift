@@ -1,15 +1,12 @@
 //
-//  MenuBarStatusView.swift
-//  BambuMonitor
+//  ContentView.swift
+//  PrintMonMobile
 //
-//  Das Popover der Menüleisten-App: Drucker-Umschalter, Status-Karte,
-//  Kamera, Filament-Übersicht und Drucker-Verwaltung im dunklen
-//  Karten-Design.
+//  Hauptansicht der iPhone-App: Status, Kamera (Tipp → Vollbild),
+//  Filamente und Drucker-Verwaltung im dunklen Karten-Design der Mac-App.
 //
 
 import SwiftUI
-import AppKit
-import Sparkle
 
 private enum Theme {
     static let background = Color(red: 0.08, green: 0.10, blue: 0.18)
@@ -20,36 +17,65 @@ private enum Theme {
     static let secondaryText = Color.white.opacity(0.55)
 }
 
-struct MenuBarStatusView: View {
+struct ContentView: View {
     @Bindable var monitor: PrinterMonitor
-    var updater: SPUUpdater?
     @State private var showSettings = false
+    @State private var showFullscreenCamera = false
 
     var body: some View {
-        ScrollView {
-            VStack(spacing: 12) {
-                if monitor.isDemoMode {
-                    demoBanner
+        NavigationStack {
+            ScrollView {
+                VStack(spacing: 12) {
+                    if monitor.isDemoMode {
+                        Label("Demo-Modus – über das Zahnrad Drucker konfigurieren", systemImage: "info.circle")
+                            .font(.caption)
+                            .foregroundStyle(.orange)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    if monitor.printers.count > 1 {
+                        printerSwitcher
+                    }
+                    StatusCard(monitor: monitor)
+                    if monitor.isConfigured {
+                        CameraCard(monitor: monitor, showFullscreen: $showFullscreenCamera)
+                            .id(cameraIdentity)
+                    }
+                    FilamentsCard(snapshot: monitor.snapshot)
                 }
-                if monitor.printers.count > 1 {
-                    printerSwitcher
-                }
-                StatusCard(monitor: monitor)
-                if monitor.isConfigured, let config = monitor.activeConfig {
-                    CameraCard(monitor: monitor)
-                        .id("\(config.id)-\(config.host)-\(monitor.activeAccessCode)")
-                }
-                FilamentsCard(snapshot: monitor.snapshot)
-                ConnectionCard(monitor: monitor, showSettings: $showSettings)
-                footer
+                .padding(14)
             }
-            .padding(14)
+            .background(Theme.background.ignoresSafeArea())
+            .navigationTitle(monitor.activeConfig?.name ?? "Joe's 3D PrintMon")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        showSettings = true
+                    } label: {
+                        Image(systemName: "gearshape")
+                    }
+                }
+                ToolbarItem(placement: .topBarLeading) {
+                    Button {
+                        monitor.refresh()
+                    } label: {
+                        Image(systemName: "arrow.clockwise")
+                    }
+                }
+            }
+            .sheet(isPresented: $showSettings) {
+                SettingsSheet(monitor: monitor)
+            }
+            .fullScreenCover(isPresented: $showFullscreenCamera) {
+                FullscreenCameraView(monitor: monitor)
+            }
         }
-        // MenuBarExtra-Fenster kollabieren ohne explizite Höhe, weil die
-        // ScrollView keine intrinsische Höhe meldet.
-        .frame(width: 400, height: 640)
-        .background(Theme.background)
-        .environment(\.colorScheme, .dark)
+        .preferredColorScheme(.dark)
+    }
+
+    private var cameraIdentity: String {
+        guard let config = monitor.activeConfig else { return "none" }
+        return "\(config.id)-\(config.host)-\(monitor.activeAccessCode)"
     }
 
     private var printerSwitcher: some View {
@@ -62,43 +88,6 @@ struct MenuBarStatusView: View {
             }
         }
         .pickerStyle(.segmented)
-        .labelsHidden()
-    }
-
-    private var demoBanner: some View {
-        Label("Demo-Modus – unten Drucker konfigurieren", systemImage: "info.circle")
-            .font(.caption)
-            .foregroundStyle(.orange)
-            .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
-    private var footer: some View {
-        HStack {
-            if let lastUpdate = monitor.lastUpdate {
-                Text("Aktualisiert \(lastUpdate.formatted(date: .omitted, time: .standard))")
-                    .font(.caption2)
-                    .foregroundStyle(Theme.secondaryText)
-            }
-            Spacer()
-            if let updater {
-                Button("Nach Updates suchen") {
-                    // Die Update-Fenster von Sparkle brauchen eine aktive App –
-                    // als Menüleisten-App ist sie das sonst nicht.
-                    NSApplication.shared.activate(ignoringOtherApps: true)
-                    updater.checkForUpdates()
-                }
-                .buttonStyle(.plain)
-                .font(.caption)
-                .foregroundStyle(Theme.secondaryText)
-            }
-            Button("Beenden") {
-                NSApplication.shared.terminate(nil)
-            }
-            .buttonStyle(.plain)
-            .font(.caption)
-            .foregroundStyle(Theme.secondaryText)
-        }
-        .padding(.top, 2)
     }
 }
 
@@ -131,27 +120,18 @@ private struct StatusCard: View {
                 }
             }
 
-            HStack {
-                statusBadge
+            HStack(spacing: 8) {
+                Label(snapshot.activity.displayName, systemImage: snapshot.activity == .printing ? "play.fill" : "circle.fill")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(snapshot.activity.color)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 5)
+                    .background(snapshot.activity.color.opacity(0.15), in: Capsule())
                 Spacer()
-                Button {
-                    monitor.refresh()
-                } label: {
-                    Label("Aktualisieren", systemImage: "arrow.clockwise")
-                }
-                .buttonStyle(PillButtonStyle())
-                if monitor.activeConfig?.kind == .bambu {
-                    Button {
-                        openBambuStudio()
-                    } label: {
-                        Label("Bambu Studio", systemImage: "square.grid.2x2")
-                    }
-                    .buttonStyle(PillButtonStyle())
-                }
+                connectionIndicator
             }
 
             ProgressView(value: Double(snapshot.progressPercent), total: 100)
-                .progressViewStyle(.linear)
                 .tint(Theme.accent)
 
             HStack(spacing: 10) {
@@ -178,36 +158,37 @@ private struct StatusCard: View {
             }
         }
         .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
         .cardBackground()
     }
 
-    private var statusBadge: some View {
-        Label(snapshot.activity.displayName, systemImage: snapshot.activity == .printing ? "play.fill" : "circle.fill")
-            .font(.caption.weight(.semibold))
-            .foregroundStyle(snapshot.activity.color)
-            .padding(.horizontal, 10)
-            .padding(.vertical, 5)
-            .background(snapshot.activity.color.opacity(0.15), in: Capsule())
+    private var connectionIndicator: some View {
+        HStack(spacing: 6) {
+            Circle()
+                .fill(statusColor)
+                .frame(width: 8, height: 8)
+            Text(monitor.status.displayText)
+                .font(.caption)
+                .foregroundStyle(Theme.secondaryText)
+        }
     }
 
-    private func openBambuStudio() {
-        let workspace = NSWorkspace.shared
-        if let url = workspace.urlForApplication(withBundleIdentifier: "com.bambulab.bambu-studio") {
-            workspace.openApplication(at: url, configuration: NSWorkspace.OpenConfiguration())
+    private var statusColor: Color {
+        switch monitor.status {
+        case .connected: return .green
+        case .connecting: return .orange
+        case .disconnected: return .red
+        case .notConfigured: return .gray
         }
     }
 }
 
-// MARK: - Kamera-Karte
+// MARK: - Kamera
 
-/// Zeigt das Live-Bild der Druckerkamera; ein Klick darauf öffnet den
-/// Stream größer in einem eigenen Fenster. Der Karten-Stream läuft nur,
-/// solange das Popover geöffnet ist.
 private struct CameraCard: View {
     var monitor: PrinterMonitor
+    @Binding var showFullscreen: Bool
     @State private var stream = CameraStreamController()
-    @State private var isHovering = false
-    @Environment(\.openWindow) private var openWindow
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -216,7 +197,7 @@ private struct CameraCard: View {
                     .font(.headline)
                     .foregroundStyle(.white)
                 Spacer()
-                Text("Klicken zum Vergrößern")
+                Text("Tippen zum Vergrößern")
                     .font(.caption2)
                     .foregroundStyle(Theme.secondaryText)
                     .opacity(stream.frame != nil ? 1 : 0)
@@ -230,7 +211,7 @@ private struct CameraCard: View {
                         .clipShape(RoundedRectangle(cornerRadius: 10))
                     Image(systemName: "arrow.up.left.and.arrow.down.right")
                         .font(.caption.weight(.semibold))
-                        .foregroundStyle(.white.opacity(isHovering ? 1 : 0.6))
+                        .foregroundStyle(.white.opacity(0.8))
                         .padding(6)
                         .background(.black.opacity(0.45), in: RoundedRectangle(cornerRadius: 6))
                         .padding(8)
@@ -253,27 +234,62 @@ private struct CameraCard: View {
                 }
             }
             .contentShape(RoundedRectangle(cornerRadius: 10))
-            .onHover { isHovering = $0 }
-            .onTapGesture(perform: openCameraWindow)
-            .help("Livestream in eigenem Fenster öffnen")
+            .onTapGesture { showFullscreen = true }
         }
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
         .cardBackground()
-        .onAppear(perform: startStream)
+        .onAppear {
+            if let config = monitor.activeConfig {
+                stream.start(config: config, accessCode: monitor.activeAccessCode)
+            }
+        }
         .onDisappear(perform: stream.stop)
     }
+}
 
-    private func startStream() {
-        guard let config = monitor.activeConfig else { return }
-        stream.start(config: config, accessCode: monitor.activeAccessCode)
-    }
+/// Vollbild-Kamera – im Querformat drehen für die große Ansicht.
+private struct FullscreenCameraView: View {
+    var monitor: PrinterMonitor
+    @State private var stream = CameraStreamController()
+    @Environment(\.dismiss) private var dismiss
 
-    private func openCameraWindow() {
-        // Als Menüleisten-App muss die App aktiv sein, damit das Fenster
-        // im Vordergrund erscheint.
-        NSApplication.shared.activate(ignoringOtherApps: true)
-        openWindow(id: "camera")
+    var body: some View {
+        ZStack(alignment: .topTrailing) {
+            Color.black.ignoresSafeArea()
+            if let frame = stream.frame {
+                Image(platformImage: frame)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else {
+                VStack(spacing: 8) {
+                    Image(systemName: "video")
+                        .font(.largeTitle)
+                        .foregroundStyle(.secondary)
+                    Text(stream.statusText)
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                }
+                .padding()
+            }
+            Button {
+                dismiss()
+            } label: {
+                Image(systemName: "xmark.circle.fill")
+                    .font(.title)
+                    .foregroundStyle(.white.opacity(0.8))
+            }
+            .padding()
+        }
+        .onAppear {
+            if let config = monitor.activeConfig {
+                stream.start(config: config, accessCode: monitor.activeAccessCode)
+            }
+        }
+        .onDisappear(perform: stream.stop)
+        .statusBarHidden()
     }
 }
 
@@ -366,121 +382,76 @@ private struct TrayView: View {
     }
 }
 
-// MARK: - Drucker-Verwaltung
+// MARK: - Einstellungen
 
-private struct ConnectionCard: View {
+private struct SettingsSheet: View {
     @Bindable var monitor: PrinterMonitor
-    @Binding var showSettings: Bool
+    @Environment(\.dismiss) private var dismiss
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Text("Drucker")
-                    .font(.headline)
-                    .foregroundStyle(.white)
-                Spacer()
-                Menu {
-                    ForEach(PrinterKind.allCases, id: \.self) { kind in
-                        Button("\(kind.displayName) hinzufügen") {
-                            monitor.addPrinter(kind: kind)
-                            showSettings = true
+        NavigationStack {
+            Form {
+                Section("Drucker") {
+                    ForEach(monitor.printers) { printer in
+                        Button {
+                            monitor.selectPrinter(printer.id)
+                        } label: {
+                            HStack {
+                                Text(printer.name)
+                                Spacer()
+                                Text(printer.kind.displayName)
+                                    .foregroundStyle(.secondary)
+                                if printer.id == monitor.activePrinterID {
+                                    Image(systemName: "checkmark")
+                                        .foregroundStyle(Theme.accent)
+                                }
+                            }
+                        }
+                        .foregroundStyle(.primary)
+                    }
+                    Menu("Drucker hinzufügen") {
+                        ForEach(PrinterKind.allCases, id: \.self) { kind in
+                            Button(kind.displayName) {
+                                monitor.addPrinter(kind: kind)
+                            }
                         }
                     }
-                } label: {
-                    Image(systemName: "plus")
-                        .foregroundStyle(Theme.secondaryText)
-                }
-                .menuStyle(.borderlessButton)
-                .fixedSize()
-                Button {
-                    showSettings.toggle()
-                } label: {
-                    Image(systemName: showSettings ? "chevron.up" : "gearshape")
-                        .foregroundStyle(Theme.secondaryText)
-                }
-                .buttonStyle(.plain)
-            }
-
-            HStack(spacing: 8) {
-                Circle()
-                    .fill(statusColor)
-                    .frame(width: 8, height: 8)
-                Text(monitor.status.displayText)
-                    .font(.footnote)
-                    .foregroundStyle(Theme.secondaryText)
-                if let kind = monitor.activeConfig?.kind {
-                    Text("· \(kind.displayName)")
-                        .font(.footnote)
-                        .foregroundStyle(Theme.secondaryText)
-                }
-                Spacer()
-                if let serial = monitor.activeConfig?.serial, !serial.isEmpty {
-                    Text(serial)
-                        .font(.caption2.monospaced())
-                        .foregroundStyle(Theme.secondaryText)
-                }
-            }
-
-            if showSettings || !monitor.isConfigured {
-                settingsForm
-            }
-        }
-        .padding(16)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .cardBackground()
-    }
-
-    private var statusColor: Color {
-        switch monitor.status {
-        case .connected: return .green
-        case .connecting: return .orange
-        case .disconnected: return .red
-        case .notConfigured: return .gray
-        }
-    }
-
-    @ViewBuilder
-    private var settingsForm: some View {
-        if let config = monitor.activeConfig {
-            VStack(alignment: .leading, spacing: 8) {
-                SettingsField(label: "Name", placeholder: config.kind.defaultPrinterName, text: configField(\.name))
-                SettingsField(label: "IP-Adresse", placeholder: "192.168.1.100", text: configField(\.host))
-
-                if config.kind == .bambu {
-                    SettingsField(label: "Seriennummer", placeholder: "01S00A123456789", text: configField(\.serial))
-                    SettingsField(label: "Access Code", placeholder: "LAN-Zugangscode", text: $monitor.activeAccessCode)
-                    Text("IP und Access Code findest du am Drucker unter Einstellungen → Netzwerk (LAN-Modus).")
-                        .font(.caption2)
-                        .foregroundStyle(Theme.secondaryText)
-                } else {
-                    Text("Es reicht die IP-Adresse des U1 im lokalen Netzwerk (am Drucker unter Einstellungen → Netzwerk).")
-                        .font(.caption2)
-                        .foregroundStyle(Theme.secondaryText)
                 }
 
-                HStack {
-                    Button(role: .destructive) {
-                        monitor.removeActivePrinter()
-                    } label: {
-                        Text("Entfernen")
+                if let config = monitor.activeConfig {
+                    Section("\(config.name) bearbeiten") {
+                        TextField("Name", text: configField(\.name))
+                        TextField("IP-Adresse", text: configField(\.host))
+                            .keyboardType(.decimalPad)
+                            .autocorrectionDisabled()
+                        if config.kind == .bambu {
+                            TextField("Seriennummer", text: configField(\.serial))
+                                .autocorrectionDisabled()
+                                .textInputAutocapitalization(.characters)
+                            SecureField("Access Code", text: $monitor.activeAccessCode)
+                        } else {
+                            Text("Es reicht die IP-Adresse des U1 im lokalen Netzwerk.")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        Button("Verbinden") {
+                            monitor.connect()
+                            dismiss()
+                        }
+                        .disabled(!monitor.isConfigured)
+                        Button("Drucker entfernen", role: .destructive) {
+                            monitor.removeActivePrinter()
+                        }
                     }
-                    Button {
-                        monitor.connect()
-                        showSettings = false
-                    } label: {
-                        Text("Verbinden")
-                            .frame(maxWidth: .infinity)
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .tint(Theme.accent)
-                    .disabled(!monitor.isConfigured)
                 }
             }
-            .padding(.top, 4)
-        } else {
-            Text("Über „+“ einen Drucker hinzufügen.")
-                .font(.footnote)
-                .foregroundStyle(Theme.secondaryText)
+            .navigationTitle("Einstellungen")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Fertig") { dismiss() }
+                }
+            }
         }
     }
 
@@ -489,24 +460,6 @@ private struct ConnectionCard: View {
             get: { monitor.activeConfig?[keyPath: keyPath] ?? "" },
             set: { newValue in monitor.updateActiveConfig { $0[keyPath: keyPath] = newValue } }
         )
-    }
-}
-
-private struct SettingsField: View {
-    var label: String
-    var placeholder: String
-    @Binding var text: String
-
-    var body: some View {
-        HStack {
-            Text(label)
-                .font(.caption)
-                .foregroundStyle(Theme.secondaryText)
-                .frame(width: 96, alignment: .leading)
-            TextField(placeholder, text: $text)
-                .textFieldStyle(.roundedBorder)
-                .font(.caption)
-        }
     }
 }
 
@@ -537,18 +490,6 @@ private struct InfoChip: View {
     }
 }
 
-private struct PillButtonStyle: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .font(.caption.weight(.medium))
-            .foregroundStyle(.white.opacity(0.9))
-            .padding(.horizontal, 12)
-            .padding(.vertical, 6)
-            .background(Theme.innerCard.opacity(configuration.isPressed ? 0.6 : 1), in: Capsule())
-            .overlay(Capsule().strokeBorder(Theme.border))
-    }
-}
-
 private extension View {
     func cardBackground() -> some View {
         background(Theme.card, in: RoundedRectangle(cornerRadius: 14))
@@ -557,5 +498,5 @@ private extension View {
 }
 
 #Preview {
-    MenuBarStatusView(monitor: PrinterMonitor())
+    ContentView(monitor: PrinterMonitor())
 }

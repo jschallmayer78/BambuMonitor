@@ -59,6 +59,7 @@
 		300777403053D4B000F92712 /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
 		300777423053D4B000F92712 /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
 		300777593053D51B00F92712 /* BambuMonitorWidgetExtension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = BambuMonitorWidgetExtension.entitlements; sourceTree = "<group>"; };
+		302BB16330596D16004308EB /* PrintMonMobile.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = PrintMonMobile.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -76,6 +77,31 @@
 			);
 			target = 300776FF3053CDA800F92712 /* BambuMonitor */;
 		};
+		302BB16F30596D48004308EB /* Exceptions for "PrintMonMobile" folder in "PrintMonMobile" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 302BB16230596D16004308EB /* PrintMonMobile */;
+		};
+		302BB17C30596FF6004308EB /* Exceptions for "BambuMonitor" folder in "PrintMonMobile" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				BambuCameraClient.swift,
+				BambuMQTTClient.swift,
+				BambuRTSPCameraClient.swift,
+				CameraStream.swift,
+				KeychainHelper.swift,
+				PlatformImage.swift,
+				PrinterConfig.swift,
+				PrinterDriver.swift,
+				PrinterModels.swift,
+				PrinterMonitor.swift,
+				SnapmakerU1Driver.swift,
+				WidgetSnapshot.swift,
+			);
+			target = 302BB16230596D16004308EB /* PrintMonMobile */;
+		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -83,6 +109,7 @@
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
 				300777603053E2E300F92712 /* Exceptions for "BambuMonitor" folder in "BambuMonitor" target */,
+				302BB17C30596FF6004308EB /* Exceptions for "BambuMonitor" folder in "PrintMonMobile" target */,
 			);
 			path = BambuMonitor;
 			sourceTree = "<group>";
@@ -103,6 +130,14 @@
 				300777533053D4B100F92712 /* Exceptions for "BambuMonitorWidget" folder in "BambuMonitorWidgetExtension" target */,
 			);
 			path = BambuMonitorWidget;
+			sourceTree = "<group>";
+		};
+		302BB16430596D16004308EB /* PrintMonMobile */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				302BB16F30596D48004308EB /* Exceptions for "PrintMonMobile" folder in "PrintMonMobile" target */,
+			);
+			path = PrintMonMobile;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -139,6 +174,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		302BB16030596D16004308EB /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -150,6 +192,7 @@
 				300777123053CDA900F92712 /* BambuMonitorTests */,
 				3007771C3053CDA900F92712 /* BambuMonitorUITests */,
 				300777443053D4B000F92712 /* BambuMonitorWidget */,
+				302BB16430596D16004308EB /* PrintMonMobile */,
 				3007773F3053D4B000F92712 /* Frameworks */,
 				300777013053CDA800F92712 /* Products */,
 			);
@@ -162,6 +205,7 @@
 				3007770F3053CDA900F92712 /* BambuMonitorTests.xctest */,
 				300777193053CDA900F92712 /* BambuMonitorUITests.xctest */,
 				3007773E3053D4B000F92712 /* BambuMonitorWidgetExtension.appex */,
+				302BB16330596D16004308EB /* PrintMonMobile.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -271,6 +315,28 @@
 			productReference = 3007773E3053D4B000F92712 /* BambuMonitorWidgetExtension.appex */;
 			productType = "com.apple.product-type.app-extension";
 		};
+		302BB16230596D16004308EB /* PrintMonMobile */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 302BB16B30596D16004308EB /* Build configuration list for PBXNativeTarget "PrintMonMobile" */;
+			buildPhases = (
+				302BB15F30596D16004308EB /* Sources */,
+				302BB16030596D16004308EB /* Frameworks */,
+				302BB16130596D16004308EB /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				302BB16430596D16004308EB /* PrintMonMobile */,
+			);
+			name = PrintMonMobile;
+			packageProductDependencies = (
+			);
+			productName = PrintMonMobile;
+			productReference = 302BB16330596D16004308EB /* PrintMonMobile.app */;
+			productType = "com.apple.product-type.application";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -278,7 +344,7 @@
 			isa = PBXProject;
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
-				LastSwiftUpdateCheck = 2660;
+				LastSwiftUpdateCheck = 2700;
 				LastUpgradeCheck = 2660;
 				TargetAttributes = {
 					300776FF3053CDA800F92712 = {
@@ -294,6 +360,9 @@
 					};
 					3007773D3053D4B000F92712 = {
 						CreatedOnToolsVersion = 26.6;
+					};
+					302BB16230596D16004308EB = {
+						CreatedOnToolsVersion = 27.0;
 					};
 				};
 			};
@@ -318,6 +387,7 @@
 				3007770E3053CDA900F92712 /* BambuMonitorTests */,
 				300777183053CDA900F92712 /* BambuMonitorUITests */,
 				3007773D3053D4B000F92712 /* BambuMonitorWidgetExtension */,
+				302BB16230596D16004308EB /* PrintMonMobile */,
 			);
 		};
 /* End PBXProject section */
@@ -351,6 +421,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		302BB16130596D16004308EB /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
@@ -376,6 +453,13 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		3007773A3053D4B000F92712 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		302BB15F30596D16004308EB /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -785,6 +869,96 @@
 			};
 			name = Release;
 		};
+		302BB16C30596D16004308EB /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_APP_SANDBOX = YES;
+				ENABLE_PREVIEWS = YES;
+				ENABLE_USER_SELECTED_FILES = readonly;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = PrintMonMobile/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "Joe's 3D PrintMon";
+				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Joe's 3D PrintMon verbindet sich lokal mit deinen 3D-Druckern, um Status und Kamerabild anzuzeigen.";
+				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
+				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
+				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
+				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphonesimulator*]" = YES;
+				"INFOPLIST_KEY_UILaunchScreen_Generation[sdk=iphoneos*]" = YES;
+				"INFOPLIST_KEY_UILaunchScreen_Generation[sdk=iphonesimulator*]" = YES;
+				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphoneos*]" = UIStatusBarStyleDefault;
+				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphonesimulator*]" = UIStatusBarStyleDefault;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				IPHONEOS_DEPLOYMENT_TARGET = 27.0;
+				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
+				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
+				MACOSX_DEPLOYMENT_TARGET = 27.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = Meine.PrintMonMobile;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				REGISTER_APP_GROUPS = YES;
+				SDKROOT = auto;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				XROS_DEPLOYMENT_TARGET = 27.0;
+			};
+			name = Debug;
+		};
+		302BB16D30596D16004308EB /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_APP_SANDBOX = YES;
+				ENABLE_PREVIEWS = YES;
+				ENABLE_USER_SELECTED_FILES = readonly;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = PrintMonMobile/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "Joe's 3D PrintMon";
+				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Joe's 3D PrintMon verbindet sich lokal mit deinen 3D-Druckern, um Status und Kamerabild anzuzeigen.";
+				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
+				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
+				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
+				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphonesimulator*]" = YES;
+				"INFOPLIST_KEY_UILaunchScreen_Generation[sdk=iphoneos*]" = YES;
+				"INFOPLIST_KEY_UILaunchScreen_Generation[sdk=iphonesimulator*]" = YES;
+				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphoneos*]" = UIStatusBarStyleDefault;
+				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphonesimulator*]" = UIStatusBarStyleDefault;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				IPHONEOS_DEPLOYMENT_TARGET = 27.0;
+				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
+				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
+				MACOSX_DEPLOYMENT_TARGET = 27.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = Meine.PrintMonMobile;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				REGISTER_APP_GROUPS = YES;
+				SDKROOT = auto;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				XROS_DEPLOYMENT_TARGET = 27.0;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -829,6 +1003,15 @@
 			buildConfigurations = (
 				300777553053D4B100F92712 /* Debug */,
 				300777563053D4B100F92712 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		302BB16B30596D16004308EB /* Build configuration list for PBXNativeTarget "PrintMonMobile" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				302BB16C30596D16004308EB /* Debug */,
+				302BB16D30596D16004308EB /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
