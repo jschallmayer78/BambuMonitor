@@ -2,9 +2,9 @@
 //  PrinterMonitor.swift
 //  BambuMonitor
 //
-//  Verbindet den MQTT-Client mit der UI: verwaltet Einstellungen,
-//  Verbindungsstatus und übersetzt die JSON-Reports des Druckers
-//  in einen PrinterSnapshot.
+//  Orchestriert die konfigurierten Drucker: verwaltet die Drucker-Liste,
+//  den aktiven Drucker und dessen Treiber, und übersetzt Snapshot-Updates
+//  in UI-Zustand, Benachrichtigungen und Widget-Daten.
 //
 
 import Foundation
@@ -32,140 +32,220 @@ enum ConnectionStatus: Equatable {
 @MainActor
 final class PrinterMonitor {
 
-    // MARK: - Einstellungen (persistiert in UserDefaults)
+    // MARK: - Drucker-Liste (persistiert in UserDefaults)
 
-    var printerHost: String {
-        didSet { UserDefaults.standard.set(printerHost, forKey: "printerHost") }
+    private(set) var printers: [PrinterConfig] {
+        didSet { persistPrinters() }
     }
-    var printerSerial: String {
-        didSet { UserDefaults.standard.set(printerSerial, forKey: "printerSerial") }
+    private(set) var activePrinterID: UUID? {
+        didSet { UserDefaults.standard.set(activePrinterID?.uuidString, forKey: "activePrinterID") }
     }
-    var accessCode: String {
-        didSet { KeychainHelper.saveAccessCode(accessCode) }
+
+    /// Access Code des aktiven Druckers (nur Bambu; liegt im Keychain).
+    var activeAccessCode: String = "" {
+        didSet {
+            guard !suppressAccessCodeSave, let id = activePrinterID else { return }
+            KeychainHelper.saveAccessCode(activeAccessCode, for: id)
+        }
     }
-    var printerName: String {
-        didSet { UserDefaults.standard.set(printerName, forKey: "printerName") }
+    @ObservationIgnored private var suppressAccessCodeSave = false
+
+    var activeConfig: PrinterConfig? {
+        printers.first { $0.id == activePrinterID }
     }
 
     var isConfigured: Bool {
-        !printerHost.isEmpty && !printerSerial.isEmpty && !accessCode.isEmpty
+        guard let config = activeConfig, config.isComplete else { return false }
+        if config.kind == .bambu { return !activeAccessCode.isEmpty }
+        return true
     }
 
-    // MARK: - Zustand
+    /// Solange kein Drucker konfiguriert ist, zeigt die UI Beispieldaten.
+    var isDemoMode: Bool { printers.isEmpty }
+
+    // MARK: - Zustand des aktiven Druckers
 
     private(set) var snapshot = PrinterSnapshot()
     private(set) var status: ConnectionStatus = .notConfigured
     private(set) var lastUpdate: Date?
 
-    /// Solange kein Drucker konfiguriert ist, zeigt die UI Beispieldaten.
-    var isDemoMode: Bool { !isConfigured }
-
-    @ObservationIgnored private var client: BambuMQTTClient?
-    /// Bambu sendet nach dem ersten "pushall" nur noch Teil-Updates –
-    /// hier wird der zusammengeführte Gesamtzustand gehalten.
-    @ObservationIgnored private var mergedReport: [String: Any] = [:]
+    @ObservationIgnored private var driver: PrinterDriver?
     @ObservationIgnored private var reconnectTask: Task<Void, Never>?
+
+    // MARK: - Initialisierung
 
     init() {
         let defaults = UserDefaults.standard
-        printerHost = defaults.string(forKey: "printerHost") ?? ""
-        printerSerial = defaults.string(forKey: "printerSerial") ?? ""
-        printerName = defaults.string(forKey: "printerName") ?? "Bambu Drucker"
-
-        // Der Access Code liegt im Keychain; frühere Versionen speicherten
-        // ihn in den UserDefaults – einmalig migrieren.
-        if let legacy = defaults.string(forKey: "accessCode"), !legacy.isEmpty {
-            KeychainHelper.saveAccessCode(legacy)
-            defaults.removeObject(forKey: "accessCode")
-            accessCode = legacy
+        if let data = defaults.data(forKey: "printerConfigs"),
+           let configs = try? JSONDecoder().decode([PrinterConfig].self, from: data) {
+            printers = configs
         } else {
-            accessCode = KeychainHelper.loadAccessCode() ?? ""
+            printers = []
         }
+        if let idString = defaults.string(forKey: "activePrinterID"),
+           let id = UUID(uuidString: idString) {
+            activePrinterID = id
+        }
+
+        migrateLegacySinglePrinter()
+
+        if activePrinterID == nil || activeConfig == nil {
+            activePrinterID = printers.first?.id
+        }
+        loadActiveAccessCode()
 
         if isConfigured {
             connect()
-        } else {
+        } else if isDemoMode {
             snapshot = .demo
         }
+    }
+
+    /// Übernimmt die Einzeldrucker-Konfiguration aus Versionen vor der
+    /// Multi-Drucker-Unterstützung (printerHost/printerSerial/printerName).
+    private func migrateLegacySinglePrinter() {
+        let defaults = UserDefaults.standard
+        guard printers.isEmpty,
+              let host = defaults.string(forKey: "printerHost"), !host.isEmpty else { return }
+
+        var config = PrinterConfig(kind: .bambu, name: defaults.string(forKey: "printerName") ?? "Bambu Drucker")
+        config.host = host
+        config.serial = defaults.string(forKey: "printerSerial") ?? ""
+        printers = [config]
+        activePrinterID = config.id
+
+        if let legacyCode = KeychainHelper.legacyAccessCode(), !legacyCode.isEmpty {
+            KeychainHelper.saveAccessCode(legacyCode, for: config.id)
+            KeychainHelper.deleteLegacyAccessCode()
+        }
+        for key in ["printerHost", "printerSerial", "printerName"] {
+            defaults.removeObject(forKey: key)
+        }
+    }
+
+    private func persistPrinters() {
+        if let data = try? JSONEncoder().encode(printers) {
+            UserDefaults.standard.set(data, forKey: "printerConfigs")
+        }
+    }
+
+    private func loadActiveAccessCode() {
+        suppressAccessCodeSave = true
+        if let id = activePrinterID {
+            activeAccessCode = KeychainHelper.loadAccessCode(for: id) ?? ""
+        } else {
+            activeAccessCode = ""
+        }
+        suppressAccessCodeSave = false
+    }
+
+    // MARK: - Drucker verwalten
+
+    func selectPrinter(_ id: UUID) {
+        guard id != activePrinterID, printers.contains(where: { $0.id == id }) else { return }
+        disconnect()
+        activePrinterID = id
+        loadActiveAccessCode()
+        snapshot = PrinterSnapshot()
+        connect()
+    }
+
+    func addPrinter(kind: PrinterKind) {
+        let config = PrinterConfig(kind: kind, name: kind.defaultPrinterName)
+        printers.append(config)
+        disconnect()
+        activePrinterID = config.id
+        loadActiveAccessCode()
+        snapshot = PrinterSnapshot()
+        status = .notConfigured
+    }
+
+    func removeActivePrinter() {
+        guard let id = activePrinterID else { return }
+        disconnect()
+        KeychainHelper.deleteAccessCode(for: id)
+        printers.removeAll { $0.id == id }
+        activePrinterID = printers.first?.id
+        loadActiveAccessCode()
+        snapshot = isDemoMode ? .demo : PrinterSnapshot()
+        status = .notConfigured
+        if isConfigured { connect() }
+    }
+
+    /// Ändert Felder der aktiven Konfiguration (für UI-Bindings).
+    func updateActiveConfig(_ transform: (inout PrinterConfig) -> Void) {
+        guard let index = printers.firstIndex(where: { $0.id == activePrinterID }) else { return }
+        transform(&printers[index])
     }
 
     // MARK: - Verbindung
 
     func connect() {
-        guard isConfigured else {
+        guard let config = activeConfig, isConfigured else {
             status = .notConfigured
-            snapshot = .demo
+            if isDemoMode { snapshot = .demo }
             return
         }
         reconnectTask?.cancel()
-        // Alten Client vollständig stilllegen, sonst melden dessen Callbacks
-        // weiter Statusänderungen und lösen konkurrierende Reconnects aus.
-        client?.onStateChange = nil
-        client?.onMessage = nil
-        client?.disconnect(notify: false)
-        mergedReport = [:]
+        driver?.onSnapshot = nil
+        driver?.onStatus = nil
+        driver?.disconnect()
         snapshot = PrinterSnapshot()
 
-        let client = BambuMQTTClient(host: printerHost, accessCode: accessCode, serial: printerSerial)
-        self.client = client
+        let driver: PrinterDriver
+        switch config.kind {
+        case .bambu:
+            driver = BambuDriver(host: config.host, serial: config.serial, accessCode: activeAccessCode)
+        case .snapmakerU1:
+            driver = SnapmakerU1Driver(host: config.host)
+        }
+        self.driver = driver
 
-        client.onStateChange = { [weak self, weak client] state in
-            guard let self, let client, self.client === client else { return }
-            switch state {
-            case .connecting:
-                self.status = .connecting
-            case .connected:
-                self.status = .connected
-            case .disconnected(let reason):
-                self.status = .disconnected(reason)
-                self.scheduleReconnect()
+        driver.onStatus = { [weak self, weak driver] newStatus in
+            guard let self, let driver, self.driver === driver else { return }
+            self.status = newStatus
+            if case .disconnected = newStatus {
+                self.scheduleReconnectIfNeeded()
             }
         }
-        client.onMessage = { [weak self, weak client] _, payload in
-            guard let self, let client, self.client === client else { return }
-            self.handleReport(payload)
+        driver.onSnapshot = { [weak self, weak driver] newSnapshot in
+            guard let self, let driver, self.driver === driver else { return }
+            self.lastUpdate = Date()
+            let previousActivity = self.snapshot.activity
+            self.snapshot = newSnapshot
+            self.notifyOnPrintEnd(previous: previousActivity, current: newSnapshot.activity)
+            self.publishWidgetSnapshot()
         }
-        client.connect()
+        driver.connect()
     }
 
     func disconnect() {
         reconnectTask?.cancel()
-        client?.disconnect(notify: false)
-        client = nil
+        driver?.onSnapshot = nil
+        driver?.onStatus = nil
+        driver?.disconnect()
+        driver = nil
         status = isConfigured ? .disconnected(nil) : .notConfigured
     }
 
     func refresh() {
         if status == .connected {
-            client?.requestFullStatus()
+            driver?.refresh()
         } else {
             connect()
         }
     }
 
-    private func scheduleReconnect() {
+    /// Der U1-Treiber pollt selbstständig weiter; nur verbindungsorientierte
+    /// Treiber (Bambu-MQTT) brauchen einen Neuaufbau.
+    private func scheduleReconnectIfNeeded() {
+        guard activeConfig?.kind == .bambu else { return }
         reconnectTask?.cancel()
         reconnectTask = Task { [weak self] in
             try? await Task.sleep(for: .seconds(10))
             guard !Task.isCancelled else { return }
             self?.connect()
         }
-    }
-
-    // MARK: - Report-Verarbeitung
-
-    private func handleReport(_ payload: Data) {
-        guard let json = try? JSONSerialization.jsonObject(with: payload) as? [String: Any],
-              let printUpdate = json["print"] as? [String: Any] else { return }
-
-        var merged = mergedReport
-        Self.deepMerge(&merged, printUpdate)
-        mergedReport = merged
-        lastUpdate = Date()
-        let previousActivity = snapshot.activity
-        snapshot = Self.parseSnapshot(from: merged)
-        notifyOnPrintEnd(previous: previousActivity, current: snapshot.activity)
-        publishWidgetSnapshot()
     }
 
     // MARK: - Benachrichtigungen
@@ -179,6 +259,7 @@ final class PrinterMonitor {
         case .failed: title = "Druck fehlgeschlagen"
         default: return
         }
+        let printerName = activeConfig?.name ?? "Drucker"
         let body = snapshot.taskName.isEmpty ? printerName : "\(snapshot.taskName) auf \(printerName)"
         let center = UNUserNotificationCenter.current()
         center.requestAuthorization(options: [.alert, .sound]) { granted, _ in
@@ -212,7 +293,7 @@ final class PrinterMonitor {
         lastWrittenState = writeState
 
         guard let defaults = UserDefaults(suiteName: WidgetSnapshot.appGroupID),
-              let data = try? JSONEncoder().encode(WidgetSnapshot(from: snapshot, printerName: printerName)) else { return }
+              let data = try? JSONEncoder().encode(WidgetSnapshot(from: snapshot, printerName: activeConfig?.name ?? "Drucker")) else { return }
         defaults.set(data, forKey: WidgetSnapshot.storageKey)
 
         let activityChanged = lastReloadState?.1 != snapshot.activity
@@ -223,108 +304,5 @@ final class PrinterMonitor {
             lastReloadDate = now
             WidgetCenter.shared.reloadAllTimelines()
         }
-    }
-
-    /// Führt ein Teil-Update rekursiv in den Gesamtzustand ein.
-    private static func deepMerge(_ base: inout [String: Any], _ update: [String: Any]) {
-        for (key, value) in update {
-            if let updateDict = value as? [String: Any],
-               var baseDict = base[key] as? [String: Any] {
-                deepMerge(&baseDict, updateDict)
-                base[key] = baseDict
-            } else {
-                base[key] = value
-            }
-        }
-    }
-
-    private static func parseSnapshot(from report: [String: Any]) -> PrinterSnapshot {
-        var s = PrinterSnapshot()
-        s.taskName = report["subtask_name"] as? String ?? ""
-        s.activity = PrinterActivity(rawValue: string(report["gcode_state"]) ?? "") ?? .unknown
-        s.progressPercent = int(report["mc_percent"]) ?? 0
-        s.remainingMinutes = int(report["mc_remaining_time"]) ?? 0
-        s.currentLayer = int(report["layer_num"]) ?? 0
-        s.totalLayers = int(report["total_layer_num"]) ?? 0
-        s.nozzleTemp = double(report["nozzle_temper"]) ?? 0
-        s.nozzleTarget = double(report["nozzle_target_temper"]) ?? 0
-        s.bedTemp = double(report["bed_temper"]) ?? 0
-        s.bedTarget = double(report["bed_target_temper"]) ?? 0
-        s.chamberTemp = double(report["chamber_temper"])
-
-        if let ams = report["ams"] as? [String: Any] {
-            s.activeTrayID = string(ams["tray_now"])
-            if let units = ams["ams"] as? [[String: Any]] {
-                s.amsUnits = units.map { parseAMSUnit($0) }
-            }
-        }
-
-        if let vt = report["vt_tray"] as? [String: Any] {
-            let material = string(vt["tray_type"]) ?? ""
-            s.externalSpool = FilamentTray(
-                id: "EXT",
-                material: material.isEmpty ? "Leer" : material,
-                colorHex: string(vt["tray_color"]) ?? "808080FF",
-                remainPercent: positivePercent(int(vt["remain"]))
-            )
-        }
-        return s
-    }
-
-    private static func parseAMSUnit(_ unit: [String: Any]) -> AMSUnit {
-        let unitID = string(unit["id"]) ?? "0"
-        let unitIndex = Int(unitID) ?? 0
-        let slotLetter = Character(UnicodeScalar(65 + min(unitIndex, 25))!)
-
-        var humidityText: String?
-        if let raw = int(unit["humidity_raw"]), raw > 0 {
-            humidityText = "\(raw)%"
-        } else if let level = int(unit["humidity"]) {
-            humidityText = "Stufe \(level)/5"
-        }
-
-        var trays: [FilamentTray] = []
-        if let trayList = unit["tray"] as? [[String: Any]] {
-            for tray in trayList {
-                let slotIndex = (int(tray["id"]) ?? 0) + 1
-                let material = string(tray["tray_type"]) ?? ""
-                trays.append(FilamentTray(
-                    id: "\(slotLetter)\(slotIndex)",
-                    material: material.isEmpty ? "Leer" : material,
-                    colorHex: string(tray["tray_color"]) ?? "808080FF",
-                    remainPercent: positivePercent(int(tray["remain"]))
-                ))
-            }
-        }
-        return AMSUnit(
-            id: unitID,
-            humidityText: humidityText,
-            temperature: double(unit["temp"]),
-            trays: trays
-        )
-    }
-
-    // Der Drucker liefert Zahlen je nach Firmware mal als String, mal als Zahl.
-    private static func string(_ value: Any?) -> String? {
-        if let s = value as? String { return s }
-        if let n = value as? NSNumber { return n.stringValue }
-        return nil
-    }
-
-    private static func int(_ value: Any?) -> Int? {
-        if let n = value as? NSNumber { return n.intValue }
-        if let s = value as? String { return Int(s) }
-        return nil
-    }
-
-    private static func double(_ value: Any?) -> Double? {
-        if let n = value as? NSNumber { return n.doubleValue }
-        if let s = value as? String { return Double(s) }
-        return nil
-    }
-
-    private static func positivePercent(_ value: Int?) -> Int? {
-        guard let value, value >= 0 else { return nil }
-        return min(value, 100)
     }
 }

@@ -2,8 +2,9 @@
 //  MenuBarStatusView.swift
 //  BambuMonitor
 //
-//  Das Popover der Menüleisten-App: Status-Karte, Filament-Übersicht
-//  und Verbindungseinstellungen im dunklen Karten-Design.
+//  Das Popover der Menüleisten-App: Drucker-Umschalter, Status-Karte,
+//  Kamera, Filament-Übersicht und Drucker-Verwaltung im dunklen
+//  Karten-Design.
 //
 
 import SwiftUI
@@ -30,10 +31,13 @@ struct MenuBarStatusView: View {
                 if monitor.isDemoMode {
                     demoBanner
                 }
+                if monitor.printers.count > 1 {
+                    printerSwitcher
+                }
                 StatusCard(monitor: monitor)
-                if monitor.isConfigured {
+                if monitor.isConfigured, let config = monitor.activeConfig {
                     CameraCard(monitor: monitor)
-                        .id(monitor.printerHost + monitor.accessCode)
+                        .id("\(config.id)-\(config.host)-\(monitor.activeAccessCode)")
                 }
                 FilamentsCard(snapshot: monitor.snapshot)
                 ConnectionCard(monitor: monitor, showSettings: $showSettings)
@@ -46,6 +50,19 @@ struct MenuBarStatusView: View {
         .frame(width: 400, height: 640)
         .background(Theme.background)
         .environment(\.colorScheme, .dark)
+    }
+
+    private var printerSwitcher: some View {
+        Picker("Drucker", selection: Binding(
+            get: { monitor.activePrinterID },
+            set: { if let id = $0 { monitor.selectPrinter(id) } }
+        )) {
+            ForEach(monitor.printers) { printer in
+                Text(printer.name).tag(Optional(printer.id))
+            }
+        }
+        .pickerStyle(.segmented)
+        .labelsHidden()
     }
 
     private var demoBanner: some View {
@@ -96,7 +113,7 @@ private struct StatusCard: View {
         VStack(alignment: .leading, spacing: 14) {
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(monitor.printerName)
+                    Text(monitor.activeConfig?.name ?? "Kein Drucker")
                         .font(.title2.bold())
                         .foregroundStyle(.white)
                     Text(snapshot.activity.subtitle)
@@ -123,12 +140,14 @@ private struct StatusCard: View {
                     Label("Aktualisieren", systemImage: "arrow.clockwise")
                 }
                 .buttonStyle(PillButtonStyle())
-                Button {
-                    openBambuStudio()
-                } label: {
-                    Label("Bambu Studio", systemImage: "square.grid.2x2")
+                if monitor.activeConfig?.kind == .bambu {
+                    Button {
+                        openBambuStudio()
+                    } label: {
+                        Label("Bambu Studio", systemImage: "square.grid.2x2")
+                    }
+                    .buttonStyle(PillButtonStyle())
                 }
-                .buttonStyle(PillButtonStyle())
             }
 
             ProgressView(value: Double(snapshot.progressPercent), total: 100)
@@ -182,13 +201,15 @@ private struct StatusCard: View {
 // MARK: - Kamera-Karte
 
 /// Zeigt das Live-Bild der Druckerkamera. Der Stream läuft nur, solange
-/// das Popover geöffnet ist.
+/// das Popover geöffnet ist. Bambu: RTSP (X1/H2/P2) mit JPEG-Fallback
+/// (P1/A1); Snapmaker U1: Snapshot-Polling über Moonraker.
 private struct CameraCard: View {
     var monitor: PrinterMonitor
     @State private var frame: NSImage?
     @State private var statusText = "Kamera wird verbunden…"
     @State private var rtspClient: BambuRTSPCameraClient?
     @State private var jpegClient: BambuCameraClient?
+    @State private var snapshotClient: HTTPSnapshotCameraClient?
     @State private var isVisible = false
 
     var body: some View {
@@ -231,12 +252,18 @@ private struct CameraCard: View {
 
     private func startStream() {
         isVisible = true
-        startRTSPStream()
+        switch monitor.activeConfig?.kind {
+        case .snapmakerU1:
+            startSnapshotStream()
+        default:
+            startRTSPStream()
+        }
     }
 
     /// X1-, H2- und P2-Modelle streamen H.264 per RTSPS auf Port 322.
     private func startRTSPStream() {
-        let client = BambuRTSPCameraClient(host: monitor.printerHost, accessCode: monitor.accessCode)
+        guard let config = monitor.activeConfig else { return }
+        let client = BambuRTSPCameraClient(host: config.host, accessCode: monitor.activeAccessCode)
         rtspClient = client
         client.onFrame = { image in
             frame = image
@@ -256,7 +283,8 @@ private struct CameraCard: View {
 
     /// P1- und A1-Modelle liefern JPEG-Frames auf Port 6000.
     private func startJPEGStream() {
-        let client = BambuCameraClient(host: monitor.printerHost, accessCode: monitor.accessCode)
+        guard let config = monitor.activeConfig else { return }
+        let client = BambuCameraClient(host: config.host, accessCode: monitor.activeAccessCode)
         jpegClient = client
         client.onFrame = { image in
             frame = image
@@ -273,14 +301,30 @@ private struct CameraCard: View {
         client.start()
     }
 
+    /// Snapmaker U1: JPEG-Snapshots über die Moonraker-Webcam-API.
+    private func startSnapshotStream() {
+        guard let config = monitor.activeConfig else { return }
+        let client = HTTPSnapshotCameraClient(host: config.host)
+        snapshotClient = client
+        client.onFrame = { image in
+            frame = image
+        }
+        client.onError = { message in
+            if frame == nil {
+                statusText = message
+            }
+        }
+        client.start()
+    }
+
     /// Verbindung mitten im Stream verloren → kurz warten und neu aufbauen.
     private func restartAfterDelay() {
         frame = nil
         statusText = "Verbindung verloren – neuer Versuch…"
         Task {
             try? await Task.sleep(for: .seconds(2))
-            if isVisible && rtspClient == nil && jpegClient == nil {
-                startRTSPStream()
+            if isVisible && rtspClient == nil && jpegClient == nil && snapshotClient == nil {
+                startStream()
             }
         }
     }
@@ -291,6 +335,8 @@ private struct CameraCard: View {
         rtspClient = nil
         jpegClient?.stop()
         jpegClient = nil
+        snapshotClient?.stop()
+        snapshotClient = nil
     }
 }
 
@@ -330,7 +376,7 @@ private struct FilamentsCard: View {
                     }
                     HStack(spacing: 8) {
                         ForEach(unit.trays) { tray in
-                            TrayView(tray: tray, isActive: isTrayActive(tray, in: unit))
+                            TrayView(tray: tray, isActive: tray.id == snapshot.activeTrayID)
                         }
                     }
                 }
@@ -341,7 +387,7 @@ private struct FilamentsCard: View {
                     Text("Externe Spule")
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(.white.opacity(0.8))
-                    TrayView(tray: spool, isActive: snapshot.activeTrayID == "254")
+                    TrayView(tray: spool, isActive: spool.id == snapshot.activeTrayID)
                         .frame(maxWidth: 90)
                 }
             }
@@ -349,14 +395,6 @@ private struct FilamentsCard: View {
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
         .cardBackground()
-    }
-
-    /// `tray_now` ist ein globaler Slot-Index über alle AMS-Module (0–3 = AMS A usw.).
-    private func isTrayActive(_ tray: FilamentTray, in unit: AMSUnit) -> Bool {
-        guard let activeID = snapshot.activeTrayID, let active = Int(activeID), active < 254,
-              let unitIndex = Int(unit.id),
-              let slotNumber = Int(tray.id.dropFirst()) else { return false }
-        return active == unitIndex * 4 + (slotNumber - 1)
     }
 }
 
@@ -391,7 +429,7 @@ private struct TrayView: View {
     }
 }
 
-// MARK: - Verbindungs-Karte
+// MARK: - Drucker-Verwaltung
 
 private struct ConnectionCard: View {
     @Bindable var monitor: PrinterMonitor
@@ -400,10 +438,23 @@ private struct ConnectionCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Text("Drucker-Verbindung")
+                Text("Drucker")
                     .font(.headline)
                     .foregroundStyle(.white)
                 Spacer()
+                Menu {
+                    ForEach(PrinterKind.allCases, id: \.self) { kind in
+                        Button("\(kind.displayName) hinzufügen") {
+                            monitor.addPrinter(kind: kind)
+                            showSettings = true
+                        }
+                    }
+                } label: {
+                    Image(systemName: "plus")
+                        .foregroundStyle(Theme.secondaryText)
+                }
+                .menuStyle(.borderlessButton)
+                .fixedSize()
                 Button {
                     showSettings.toggle()
                 } label: {
@@ -420,9 +471,14 @@ private struct ConnectionCard: View {
                 Text(monitor.status.displayText)
                     .font(.footnote)
                     .foregroundStyle(Theme.secondaryText)
+                if let kind = monitor.activeConfig?.kind {
+                    Text("· \(kind.displayName)")
+                        .font(.footnote)
+                        .foregroundStyle(Theme.secondaryText)
+                }
                 Spacer()
-                if !monitor.printerSerial.isEmpty {
-                    Text(monitor.printerSerial)
+                if let serial = monitor.activeConfig?.serial, !serial.isEmpty {
+                    Text(serial)
                         .font(.caption2.monospaced())
                         .foregroundStyle(Theme.secondaryText)
                 }
@@ -446,29 +502,56 @@ private struct ConnectionCard: View {
         }
     }
 
+    @ViewBuilder
     private var settingsForm: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            SettingsField(label: "Name", placeholder: "z. B. X1 Carbon", text: $monitor.printerName)
-            SettingsField(label: "IP-Adresse", placeholder: "192.168.1.100", text: $monitor.printerHost)
-            SettingsField(label: "Seriennummer", placeholder: "01S00A123456789", text: $monitor.printerSerial)
-            SettingsField(label: "Access Code", placeholder: "LAN-Zugangscode", text: $monitor.accessCode)
+        if let config = monitor.activeConfig {
+            VStack(alignment: .leading, spacing: 8) {
+                SettingsField(label: "Name", placeholder: config.kind.defaultPrinterName, text: configField(\.name))
+                SettingsField(label: "IP-Adresse", placeholder: "192.168.1.100", text: configField(\.host))
 
-            Text("IP und Access Code findest du am Drucker unter Einstellungen → Netzwerk (LAN-Modus).")
-                .font(.caption2)
-                .foregroundStyle(Theme.secondaryText)
+                if config.kind == .bambu {
+                    SettingsField(label: "Seriennummer", placeholder: "01S00A123456789", text: configField(\.serial))
+                    SettingsField(label: "Access Code", placeholder: "LAN-Zugangscode", text: $monitor.activeAccessCode)
+                    Text("IP und Access Code findest du am Drucker unter Einstellungen → Netzwerk (LAN-Modus).")
+                        .font(.caption2)
+                        .foregroundStyle(Theme.secondaryText)
+                } else {
+                    Text("Es reicht die IP-Adresse des U1 im lokalen Netzwerk (am Drucker unter Einstellungen → Netzwerk).")
+                        .font(.caption2)
+                        .foregroundStyle(Theme.secondaryText)
+                }
 
-            Button {
-                monitor.connect()
-                showSettings = false
-            } label: {
-                Text("Verbinden")
-                    .frame(maxWidth: .infinity)
+                HStack {
+                    Button(role: .destructive) {
+                        monitor.removeActivePrinter()
+                    } label: {
+                        Text("Entfernen")
+                    }
+                    Button {
+                        monitor.connect()
+                        showSettings = false
+                    } label: {
+                        Text("Verbinden")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(Theme.accent)
+                    .disabled(!monitor.isConfigured)
+                }
             }
-            .buttonStyle(.borderedProminent)
-            .tint(Theme.accent)
-            .disabled(!monitor.isConfigured)
+            .padding(.top, 4)
+        } else {
+            Text("Über „+“ einen Drucker hinzufügen.")
+                .font(.footnote)
+                .foregroundStyle(Theme.secondaryText)
         }
-        .padding(.top, 4)
+    }
+
+    private func configField(_ keyPath: WritableKeyPath<PrinterConfig, String>) -> Binding<String> {
+        Binding(
+            get: { monitor.activeConfig?[keyPath: keyPath] ?? "" },
+            set: { newValue in monitor.updateActiveConfig { $0[keyPath: keyPath] = newValue } }
+        )
     }
 }
 

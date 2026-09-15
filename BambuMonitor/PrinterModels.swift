@@ -68,14 +68,18 @@ struct FilamentTray: Identifiable {
     }
 }
 
-/// Ein AMS-Modul mit bis zu vier Slots.
+/// Eine Filament-Einheit mit mehreren Slots – bei Bambu ein AMS-Modul,
+/// beim Snapmaker U1 die vier AFC-Lanes.
 struct AMSUnit: Identifiable {
     var id: String              // "0" → Anzeige "AMS A"
     var humidityText: String?   // z. B. "26%" oder Stufe "2/5"
     var temperature: Double?
     var trays: [FilamentTray]
+    /// Überschreibt den generierten "AMS A"-Namen (z. B. "Filament-Slots").
+    var customName: String?
 
     var displayName: String {
+        if let customName { return customName }
         let index = Int(id) ?? 0
         let letter = Character(UnicodeScalar(65 + min(index, 25))!)
         return "AMS \(letter)"
@@ -97,7 +101,8 @@ struct PrinterSnapshot {
     var chamberTemp: Double?
     var amsUnits: [AMSUnit] = []
     var externalSpool: FilamentTray?
-    var activeTrayID: String?   // "254" = externe Spule, sonst globaler Tray-Index
+    /// ID des aktiven Slots (entspricht FilamentTray.id, z. B. "A1", "EXT", "S2").
+    var activeTrayID: String?
 
     var remainingText: String {
         guard remainingMinutes > 0 else { return "–" }
@@ -129,7 +134,7 @@ struct PrinterSnapshot {
             ]),
         ]
         s.externalSpool = FilamentTray(id: "EXT", material: "PLA", colorHex: "F2E6D0FF", remainPercent: nil)
-        s.activeTrayID = "254"
+        s.activeTrayID = "EXT"
         return s
     }()
 }
